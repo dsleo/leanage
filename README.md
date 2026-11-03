@@ -42,6 +42,6 @@ Search is semantic, so confirm the exact declaration. A graph path is evidence f
 - [src/GraphExplorer.tsx](src/GraphExplorer.tsx): navigable graph, node details, and list view.
 - [src/HowItWorks.tsx](src/HowItWorks.tsx): standalone interpretation guide.
 
-The earlier [API/Vercel study](SOLUTION_API_VERCEL.md), [real-world test log](TESTS_REELS.md), and [graph hosting study](ETUDE_HEBERGEMENT_GRAPHE.md) preserve the original French feasibility notes and V2 options.
+The [graph hosting study](ETUDE_HEBERGEMENT_GRAPHE.md) preserves the original French feasibility notes and V2 options.
 
 The [method validation record](feasibility/method-validation.md) contains source checks and live results on mathematical examples.

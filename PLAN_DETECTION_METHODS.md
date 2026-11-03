@@ -1,6 +1,6 @@
 # Ouliproof: implementation plan for reasoning signals in dependency closures
 
-Status: implementation baseline approved on 1 October 2026. This supersedes the category-detection parts of `PLAN_IMPLEMENTATION_ACTUALISE.md`, whose full offline TheoremGraph export is no longer the chosen architecture. The implementation is documented in `README.md`; the validation record identifies any remaining gaps.
+Status: implementation baseline approved on 1 October 2026. The implementation is documented in `README.md`; the validation record identifies any remaining gaps.
 
 ## 1. Product question and exact meaning
 

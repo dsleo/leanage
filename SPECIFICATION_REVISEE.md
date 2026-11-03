@@ -1,6 +1,6 @@
 # Ouliproof — spécification révisée
 
-**Statut :** document de cadrage historique. Pour l'exécution, utiliser la [solution API Vercel](SOLUTION_API_VERCEL.md). La [phase de faisabilité TheoremGraph](ETUDE_FAISABILITE_THEOREMGRAPH.md) a révélé le refus CORS depuis GitHub Pages et le faux négatif sur `Classical.choice` avec une traversée `proof` seule. **Ne pas implémenter cette V1 telle quelle.**  
+**Statut :** document de cadrage historique. La [phase de faisabilité TheoremGraph](ETUDE_FAISABILITE_THEOREMGRAPH.md) a révélé le refus CORS depuis GitHub Pages et le faux négatif sur `Classical.choice` avec une traversée `proof` seule. **Ne pas implémenter cette V1 telle quelle.**
 **Date de vérification des sources :** 25 septembre 2026.  
 **Produit visé :** application web publique, utilisable sur GitHub Pages, qui examine les dépendances de déclarations Mathlib sans serveur Lean au moment de la consultation.
 
