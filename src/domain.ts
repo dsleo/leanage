@@ -64,6 +64,8 @@ export interface TraversalState {
   // 'local': ids are declaration names and the whole closure is known; viewIds bounds what the graph draws.
   source?: 'live' | 'local'
   viewIds?: Set<string>
+  // 'local' only: tactic labels recorded in the proof source for a declaration, or null when the declaration has no tactic data (unknown, not 'none').
+  tactics?: (name: string) => string[] | null
 }
 
 export const POLICY_LABEL: Record<Policy, string> = {

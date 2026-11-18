@@ -30,7 +30,7 @@ export interface Evidence {
   id: string
   category: Objective['kind']
   grade: EvidenceGrade
-  source: 'TheoremGraph' | 'MathlibGraph'
+  source: 'TheoremGraph' | 'MathlibGraph' | 'MathlibTactics'
   ruleId: string
   matchedName: string
   matchedToken?: string
@@ -75,6 +75,23 @@ const GRAPH_RULES: Record<MethodCategory, { name: string; rule: string; explanat
   ],
 }
 
+// Same-commit source tactics (local store). 'observed' only for tactics that perform the method itself; the others are context.
+const SOURCE_TACTICS: Record<MethodCategory, { observed: string[]; related: string[] }> = {
+  induction: { observed: ['induction'], related: [] },
+  cases: { observed: ['cases', 'by_cases', 'split_ifs', 'fin_cases'], related: ['rcases', 'obtain', 'rintro', 'match'] },
+  absurd: { observed: ['by_contra', 'contrapose'], related: ['exfalso'] },
+}
+
+export function sourceTactics(state: TraversalState, kind: MethodCategory, name: string): { token: string; grade: EvidenceGrade }[] {
+  const recorded = state.source === 'local' ? state.tactics?.(name) : null
+  if (!recorded) return []
+  const rules = SOURCE_TACTICS[kind]
+  return [
+    ...rules.observed.filter((token) => recorded.includes(token)).map((token) => ({ token, grade: 'observed' as const })),
+    ...rules.related.filter((token) => recorded.includes(token)).map((token) => ({ token, grade: 'related' as const })),
+  ]
+}
+
 function location(path: PathStep[]): Evidence['location'] {
   if (path.length === 1) return 'root'
   return path.some((step) => step.via === 'def') ? 'definition' : 'dependency'
@@ -90,6 +107,7 @@ function mayMatch(state: TraversalState, objective: Objective, declaration: Decl
   if (objective.kind === 'named') return objective.target === declaration.name && id !== state.rootId
   if (objective.kind === 'unknown') return false
   if (id !== state.rootId && GRAPH_RULES[objective.kind].some((rule) => rule.name === declaration.name)) return true
+  if (sourceTactics(state, objective.kind, declaration.name).length) return true
   return Boolean(index && state.visited.has(id) && index.markers[declaration.name]?.matches[objective.kind]?.length)
 }
 
@@ -108,6 +126,11 @@ function evidenceForNode(state: TraversalState, objective: Objective, id: string
       if (declaration.name === rule.name && (!rule.signature || state.source === 'local' || (state.visited.has(id) && rule.signature.test(declaration.body ?? '')))) found.push({ id: `graph:${rule.rule}:${id}`, category: objective.kind, grade: rule.grade, source: 'TheoremGraph', ruleId: rule.rule, matchedName: rule.name, explanation: rule.explanation, graphSourceLabel: declaration.sourceLabel ?? state.rootSourceLabel, location: location(path), path })
     }
   }
+  const observedTokens = new Set<string>()
+  for (const { token, grade } of sourceTactics(state, objective.kind, declaration.name)) {
+    if (grade === 'observed') observedTokens.add(token)
+    found.push({ id: `source-tactic:${objective.kind}:${id}:${token}`, category: objective.kind, grade, source: 'MathlibTactics', ruleId: `source-tactic:${token}`, matchedName: declaration.name, matchedToken: token, explanation: grade === 'observed' ? `The ${token} tactic is recorded in the proof source of this declaration, at the same Mathlib commit as the dependency store.` : `${token} is recorded in the proof source at the same Mathlib commit, but it does not by itself establish the specific method.`, graphSourceLabel: declaration.sourceLabel ?? state.rootSourceLabel, location: location(path), path })
+  }
   if (!index || !state.visited.has(id)) return found
   const marker = index.markers[declaration.name]
   const tokens = marker?.matches[objective.kind]
@@ -115,6 +138,7 @@ function evidenceForNode(state: TraversalState, objective: Objective, id: string
   const graphVersion = state.rootSourceLabel
   const joinStatus: JoinStatus = !graphVersion || graphVersion === 'Mathlib_v428' ? 'unverified' : 'different-version'
   for (const token of tokens) {
+    if (observedTokens.has(token)) continue
     const isSecondary = (objective.kind === 'cases' && token === 'rcases') || (objective.kind === 'absurd' && ['exfalso', 'absurd'].includes(token))
     found.push({ id: `tactic:${objective.kind}:${id}:${token}`, category: objective.kind, grade: isSecondary ? 'related' : 'lead', source: 'MathlibGraph', ruleId: `exact-tactic:${token}`, matchedName: declaration.name, matchedToken: token, explanation: isSecondary ? `${token} is related to this question but does not by itself establish the specific method.` : `MathlibGraph records the ${token} tactic for this declaration name. Proof-version identity with TheoremGraph is unverified.`, joinStatus, sourceRevision: index.mathlibCommit, graphSourceLabel: graphVersion, location: location(path), path })
   }

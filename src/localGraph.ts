@@ -18,6 +18,12 @@ export interface StoreFiles {
   meta: StoreMeta
 }
 
+export const TACTIC_COVERED = 1 << 15
+export interface TacticLegend {
+  mathlib_commit?: string
+  bits: Record<string, string>
+}
+
 export type Direction = 'dependencies' | 'dependents'
 
 export interface Reach {
@@ -72,6 +78,8 @@ export class LocalGraph {
   private byName?: Map<string, number>
   private nameOrder?: 'sorted' | 'unsorted'
   private axiomIds?: Map<number, string>
+  private tacticBits?: Uint16Array
+  private tacticLegend: string[] = []
 
   constructor(files: StoreFiles) {
     this.meta = files.meta
@@ -124,6 +132,36 @@ export class LocalGraph {
     }
     this.revStart = revStart
     this.revTarget = revTarget
+  }
+
+  /**
+   * Optional same-commit tactic data: one u16 per node (bit 15 = declaration resolved in the source, bits 0..11 = tactic labels from the legend).
+   * Anything inconsistent with the store is ignored, never partially used.
+   */
+  setTactics(bytes: Uint8Array, legend: TacticLegend): boolean {
+    if (bytes.length !== this.size * 2) return false
+    if (legend.mathlib_commit && this.meta.mathlib_commit && legend.mathlib_commit !== this.meta.mathlib_commit) return false
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+    const bits = new Uint16Array(this.size)
+    for (let i = 0; i < this.size; i++) bits[i] = view.getUint16(i * 2, true)
+    const labels: string[] = []
+    for (const [bit, label] of Object.entries(legend.bits)) labels[Number(bit)] = label
+    this.tacticBits = bits
+    this.tacticLegend = labels
+    return true
+  }
+
+  get hasTactics(): boolean {
+    return this.tacticBits !== undefined
+  }
+
+  /** Tactic labels recorded in the proof source, or null when this declaration has no tactic data (which is not the same as "no tactics"). */
+  tacticsOf(id: number): string[] | null {
+    const bits = this.tacticBits?.[id]
+    if (bits === undefined || !(bits & TACTIC_COVERED)) return null
+    const out: string[] = []
+    for (let b = 0; b < 15; b++) if (bits & (1 << b) && this.tacticLegend[b]) out.push(this.tacticLegend[b])
+    return out
   }
 
   private ordered(): boolean {
@@ -284,7 +322,7 @@ export async function loadLocalGraph(baseUrl: string, signal?: AbortSignal): Pro
   ])
   const decoder = new TextDecoder()
   const meta = JSON.parse(decoder.decode(metaBytes)) as StoreMeta
-  return new LocalGraph({
+  const graph = new LocalGraph({
     names: decoder.decode(names),
     modules: decoder.decode(modules),
     nodeModule,
@@ -292,4 +330,12 @@ export async function loadLocalGraph(baseUrl: string, signal?: AbortSignal): Pro
     targets,
     meta,
   })
+  // Optional: a store without tactics.* simply has no source-tactic evidence.
+  try {
+    const [bytes, legend] = await Promise.all([get('tactics.u16'), get('tactics.json')])
+    graph.setTactics(bytes, JSON.parse(decoder.decode(legend)) as TacticLegend)
+  } catch (error) {
+    if (signal?.aborted) throw error
+  }
+  return graph
 }

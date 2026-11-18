@@ -60,3 +60,53 @@ describe('local states', () => {
     expect(localStates(graph, { id: 'x', name: 'Nope.missing' }, [interpretObjective('induction')!])).toBeNull()
   })
 })
+
+describe('source tactics (same commit)', () => {
+  const legend = { mathlib_commit: 'abc1234', bits: { '0': 'induction', '1': 'cases', '2': 'rcases', '5': 'by_contra', '7': 'exfalso' } }
+  function withTactics(bitsByName: Record<string, number>): LocalGraph {
+    const g = new LocalGraph(files({
+      'Test.root': ['Test.mid', 'Nat.zero_add'],
+      'Test.mid': ['Classical.choice'],
+      'Classical.choice': ['Nonempty'],
+    }))
+    const bytes = new Uint8Array(g.size * 2)
+    const view = new DataView(bytes.buffer)
+    for (const [name, bits] of Object.entries(bitsByName)) view.setUint16(g.id(name)! * 2, bits, true)
+    expect(g.setTactics(bytes, legend)).toBe(true)
+    return g
+  }
+
+  it('upgrades to observed only for a covered declaration whose source shows the tactic', () => {
+    const g = withTactics({ 'Test.mid': (1 << 15) | 1, 'Nat.zero_add': 1 }) // zero_add has the bit but is not covered
+    const objective = interpretObjective('induction')!
+    const found = findEvidence(localStates(g, root, [objective])!.get('proof')!, objective)
+    expect(found).toHaveLength(1)
+    expect(found[0]).toMatchObject({ grade: 'observed', source: 'MathlibTactics', matchedToken: 'induction', matchedName: 'Test.mid' })
+    expect(found[0].explanation).toMatch(/same Mathlib commit/)
+  })
+
+  it('keeps related tactics related and does not invent other methods', () => {
+    const g = withTactics({ 'Test.mid': (1 << 15) | (1 << 2) | (1 << 7) })
+    const cases = interpretObjective('case analysis')!
+    const absurd = interpretObjective('contradiction')!
+    const state = localStates(g, root, [cases, absurd])!.get('proof')!
+    expect(findEvidence(state, cases).map((e) => [e.matchedToken, e.grade])).toEqual([['rcases', 'related']])
+    expect(findEvidence(state, absurd).map((e) => [e.matchedToken, e.grade])).toEqual([['exfalso', 'related']])
+    expect(findEvidence(state, interpretObjective('induction')!)).toEqual([])
+  })
+
+  it('reports no tactic data for uncovered declarations and for a store without tactics', () => {
+    const plain = new LocalGraph(files({ 'Test.root': ['Test.mid'] }))
+    expect(plain.hasTactics).toBe(false)
+    expect(plain.tacticsOf(0)).toBeNull()
+    const g = withTactics({})
+    expect(g.tacticsOf(g.id('Test.mid')!)).toBeNull()
+  })
+
+  it('rejects tactic data of the wrong length or commit', () => {
+    const g = new LocalGraph(files({ 'Test.root': ['Test.mid'] }))
+    expect(g.setTactics(new Uint8Array(3), legend)).toBe(false)
+    expect(g.setTactics(new Uint8Array(g.size * 2), { ...legend, mathlib_commit: 'other' })).toBe(false)
+    expect(g.hasTactics).toBe(false)
+  })
+})

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { LocalGraph, type StoreFiles } from './localGraph'
+import { LocalGraph, loadLocalGraph, type StoreFiles } from './localGraph'
 
 function varint(values: number[]): Uint8Array {
   const out: number[] = []
@@ -242,4 +242,37 @@ describe('real store', () => {
     const closure = graph.axioms(graph.id('Nat.Prime.dvd_or_dvd')!)
     console.log(`Nat.Prime.dvd_or_dvd closure ${closure.closureSize} in ${(performance.now() - t).toFixed(1)} ms`)
   }, 120_000)
+})
+
+describe('optional tactics file', () => {
+  const files = buildFiles(['A', 'B'], { A: ['B'] })
+  const legend = { mathlib_commit: undefined, bits: { '0': 'induction' } }
+  const bytes = (b: Uint8Array | string) => typeof b === 'string' ? new TextEncoder().encode(b) : b
+  function serve(extra: Record<string, Response | undefined>) {
+    const table: Record<string, Uint8Array | string> = {
+      'names.txt': files.names, 'modules.txt': files.modules, 'node_module.u32': files.nodeModule,
+      'degrees.vbyte': files.degrees, 'targets.vbyte': files.targets, 'meta.json': JSON.stringify(files.meta),
+    }
+    globalThis.fetch = (async (url: string) => {
+      const file = String(url).replace('/store/', '')
+      if (extra[file]) return extra[file]!.clone()
+      if (table[file] !== undefined) return new Response(bytes(table[file]) as BodyInit, { status: 200, headers: { 'content-type': 'application/octet-stream' } })
+      return new Response('nope', { status: 404 })
+    }) as typeof fetch
+  }
+  it('loads without tactic data when the file is missing, 404 or an HTML fallback', async () => {
+    serve({})
+    expect((await loadLocalGraph('/store')).hasTactics).toBe(false)
+    serve({ 'tactics.u16': new Response('<html></html>', { status: 200, headers: { 'content-type': 'text/html' } }), 'tactics.u16.gz': new Response('<html></html>', { status: 200, headers: { 'content-type': 'text/html' } }) })
+    expect((await loadLocalGraph('/store')).hasTactics).toBe(false)
+  })
+  it('loads tactic bits and reports only covered declarations', async () => {
+    const u16 = new Uint8Array(4)
+    new DataView(u16.buffer).setUint16(2, (1 << 15) | 1, true) // B covered, induction
+    serve({ 'tactics.u16': new Response(u16 as BodyInit, { status: 200 }), 'tactics.json': new Response(JSON.stringify(legend), { status: 200 }) })
+    const graph = await loadLocalGraph('/store')
+    expect(graph.hasTactics).toBe(true)
+    expect(graph.tacticsOf(graph.id('A')!)).toBeNull()
+    expect(graph.tacticsOf(graph.id('B')!)).toEqual(['induction'])
+  })
 })

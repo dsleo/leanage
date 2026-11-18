@@ -20,7 +20,7 @@ export function localStates(graph: LocalGraph, root: Declaration, objectives: Ob
     parents.set(name, parent[id] < 0 ? null : { from: graph.name(parent[id]), edge: 'proof' })
   }
   const discovered = new Set(names.keys())
-  const base = { rootId, rootSourceLabel: root.sourceLabel, status: 'complete' as const, completionReason: 'exhausted' as const, visited: discovered, discovered, names, parents, frontier: [], requests: 0, elapsedMs: 0, rootDefinitionEdges: 0, source: 'local' as const, edges: [] as Edge[] }
+  const base = { rootId, rootSourceLabel: root.sourceLabel, status: 'complete' as const, completionReason: 'exhausted' as const, visited: discovered, discovered, names, parents, frontier: [], requests: 0, elapsedMs: 0, rootDefinitionEdges: 0, source: 'local' as const, edges: [] as Edge[], tactics: (name: string) => { const id = graph.id(name); return id === undefined ? null : graph.tacticsOf(id) } }
 
   const states = new Map<Policy, TraversalState>()
   for (const policy of new Set(objectives.map((objective) => objective.policy).filter((value): value is Policy => Boolean(value)))) states.set(policy, { ...base, policy })
