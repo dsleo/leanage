@@ -61,6 +61,9 @@ export interface TraversalState {
   elapsedMs: number
   rootDefinitionEdges: number
   error?: string
+  // 'local': ids are declaration names and the whole closure is known; viewIds bounds what the graph draws.
+  source?: 'live' | 'local'
+  viewIds?: Set<string>
 }
 
 export const POLICY_LABEL: Record<Policy, string> = {

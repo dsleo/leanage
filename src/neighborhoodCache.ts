@@ -1,6 +1,6 @@
 import type { Neighborhood } from './domain'
 
-const DATABASE = 'ouliproof-neighborhoods-v1'
+const DATABASE = 'leanage-neighborhoods-v1'
 const STORE = 'neighborhoods'
 const TTL = 60 * 60 * 1000
 const MAX_ENTRIES = 120

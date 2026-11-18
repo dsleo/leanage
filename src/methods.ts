@@ -1,4 +1,4 @@
-import type { Objective, PathStep, TraversalState } from './domain'
+import type { Declaration, Objective, PathStep, TraversalState } from './domain'
 import { pathTo } from './paths'
 
 export const DETECTOR_VERSION = 'methods-1'
@@ -86,9 +86,16 @@ function compatibleKind(graphKind: string | undefined, indexKind: string | null)
   return canonical(graphKind) === canonical(indexKind)
 }
 
+function mayMatch(state: TraversalState, objective: Objective, declaration: Declaration, id: string, index?: MethodIndex): boolean {
+  if (objective.kind === 'named') return objective.target === declaration.name && id !== state.rootId
+  if (objective.kind === 'unknown') return false
+  if (id !== state.rootId && GRAPH_RULES[objective.kind].some((rule) => rule.name === declaration.name)) return true
+  return Boolean(index && state.visited.has(id) && index.markers[declaration.name]?.matches[objective.kind]?.length)
+}
+
 function evidenceForNode(state: TraversalState, objective: Objective, id: string, index?: MethodIndex): Evidence[] {
   const declaration = state.names.get(id)
-  if (!declaration) return []
+  if (!declaration || !mayMatch(state, objective, declaration, id, index)) return []
   const path = pathTo(state, id)
   if (!path.length) return []
   const found: Evidence[] = []
@@ -98,7 +105,7 @@ function evidenceForNode(state: TraversalState, objective: Objective, id: string
   if (objective.kind !== 'induction' && objective.kind !== 'cases' && objective.kind !== 'absurd') return found
   if (id !== state.rootId) {
     for (const rule of GRAPH_RULES[objective.kind]) {
-      if (declaration.name === rule.name && (!rule.signature || (state.visited.has(id) && rule.signature.test(declaration.body ?? '')))) found.push({ id: `graph:${rule.rule}:${id}`, category: objective.kind, grade: rule.grade, source: 'TheoremGraph', ruleId: rule.rule, matchedName: rule.name, explanation: rule.explanation, graphSourceLabel: declaration.sourceLabel ?? state.rootSourceLabel, location: location(path), path })
+      if (declaration.name === rule.name && (!rule.signature || state.source === 'local' || (state.visited.has(id) && rule.signature.test(declaration.body ?? '')))) found.push({ id: `graph:${rule.rule}:${id}`, category: objective.kind, grade: rule.grade, source: 'TheoremGraph', ruleId: rule.rule, matchedName: rule.name, explanation: rule.explanation, graphSourceLabel: declaration.sourceLabel ?? state.rootSourceLabel, location: location(path), path })
     }
   }
   if (!index || !state.visited.has(id)) return found

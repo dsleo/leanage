@@ -14,6 +14,7 @@ export function pathTo(state: TraversalState, id: string): PathStep[] {
   }
   if (cursor) return []
   const path = steps.reverse()
+  if (state.source === 'local') return path
   for (let index = 1; index < path.length; index++) {
     const step = path[index]
     if (!state.edges.some((edge) => edge.from === path[index - 1].id && edge.to === step.id && edge.type === step.via)) return []

@@ -3,6 +3,9 @@ import { ArrowRight } from 'lucide-react'
 import { ApiError, TheoremGraphClient } from './api'
 import type { Candidate, Declaration, Objective, Policy, TraversalState } from './domain'
 import { Explorer } from './explorer'
+import { loadLocalGraph, type LocalGraph } from './localGraph'
+import { localStates } from './localExplorer'
+import { isLeanNameLike, lookupName, type LocalMatch } from './localLookup'
 import { loadMethodIndex, type MethodIndex } from './methods'
 import { interpretObjective, namedObjective, objectiveKey, resolvableText } from './objectives'
 import { CandidateSection } from './CandidateSection'
@@ -14,13 +17,22 @@ import './design.css'
 import './styles.css'
 
 const client = new TheoremGraphClient()
+const STORE_URL = (import.meta.env.VITE_STORE_URL as string | undefined) ?? '/store'
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+// Name permalinks carry the Mathlib commit they were made against, so a different store can say so.
+function setDeclarationParams(url: URL, declaration: { id: string; name: string }, commit?: string) {
+  if (UUID.test(declaration.id)) { url.searchParams.set('id', declaration.id); return }
+  url.searchParams.set('name', declaration.name)
+  if (commit) url.searchParams.set('commit', commit.slice(0, 7))
+}
 
 function initialUrl() {
   const params = new URLSearchParams(window.location.search)
   const query = params.get('q') ?? ''
   const raw = params.getAll('detect')
   const objectives = raw.map(interpretObjective).filter((value): value is Objective => Boolean(value))
-  return { query, objectives, linkedId: params.get('id') }
+  return { query, objectives, linkedId: params.get('id'), linkedName: params.get('name'), linkedCommit: params.get('commit') }
 }
 
 const initial = initialUrl()
@@ -39,7 +51,7 @@ function debug(event: string, details: Record<string, unknown>) {
 function App() {
   const [query, setQuery] = useState(initial.query)
   const [searchedQuery, setSearchedQuery] = useState(initial.query)
-  const [searchOpen, setSearchOpen] = useState(Boolean(initial.query || initial.linkedId || initial.objectives.length))
+  const [searchOpen, setSearchOpen] = useState(true)
   const [draft, setDraft] = useState('')
   const [objectives, setObjectives] = useState<Objective[]>(initial.objectives)
   const [searchStatus, setSearchStatus] = useState<SearchStatus>('idle')
@@ -58,6 +70,11 @@ function App() {
   const [indexError, setIndexError] = useState('')
   const [resolver, setResolver] = useState<Resolver | null>(null)
   const [linkCopied, setLinkCopied] = useState(false)
+  const [storeStatus, setStoreStatus] = useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
+  const [storeNote, setStoreNote] = useState('')
+  const localGraph = useRef<LocalGraph | null>(null)
+  const storePromise = useRef<Promise<LocalGraph | null> | null>(null)
+  const [storeMiss, setStoreMiss] = useState<LocalMatch[] | null>(null)
   const searchController = useRef<AbortController | null>(null)
   const resolveController = useRef<AbortController | null>(null)
   const searchInput = useRef<HTMLInputElement>(null)
@@ -65,6 +82,33 @@ function App() {
   const hydrationTail = useRef<Promise<void>>(Promise.resolve())
   const loggedTraversals = useRef(new Map<Policy, string>())
   const explorer = useRef(new Explorer(client, setStates))
+
+  function ensureStore(): Promise<LocalGraph | null> {
+    if (localGraph.current) return Promise.resolve(localGraph.current)
+    if (!storePromise.current) {
+      setStoreStatus('loading')
+      storePromise.current = loadLocalGraph(STORE_URL).then((graph) => {
+        localGraph.current = graph
+        setStoreNote(`Local dependency store: Mathlib ${graph.meta.mathlib_commit?.slice(0, 7) ?? 'unknown commit'}, ${graph.meta.nodes.toLocaleString()} declarations. Complete closure; references are not typed.`)
+        setStoreStatus('ready')
+        return graph
+      }).catch((error) => {
+        debug('local store unavailable', { error: formatError(error) })
+        setStoreStatus('unavailable')
+        return null
+      })
+    }
+    return storePromise.current
+  }
+
+  // A Lean name needs no API: the store can offer it directly, and still can when the API is down or does not know the name.
+  async function localCandidates(text: string): Promise<Candidate[]> {
+    if (!isLeanNameLike(text)) return []
+    const graph = await ensureStore()
+    if (!graph) return []
+    const label = `Mathlib@${graph.meta.mathlib_commit?.slice(0, 7) ?? 'local'}`
+    return lookupName(graph, text, 5).filter((match) => match.reason !== 'substring' && match.reason !== 'namespace-moved').map((match) => ({ id: match.name, name: match.name, sourceLabel: `${label} · ${match.module}`, score: 0, loading: false }))
+  }
 
   const activeStates = Array.from(states.values())
   const scopedObjectives = objectives.map((objective) => includeDefinitions && objective.policy === 'proof' ? { ...objective, policy: 'body' as const } : objective)
@@ -77,12 +121,16 @@ function App() {
     window.setTimeout(() => { document.getElementById('query-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); searchInput.current?.focus({ preventScroll: true }) }, 30)
   }
 
+  useEffect(() => { if (!initial.linkedId) searchInput.current?.focus({ preventScroll: true }) }, [])
+
   useEffect(() => () => { searchController.current?.abort(); resolveController.current?.abort(); explorer.current.cancel() }, [])
 
   useEffect(() => {
     const url = new URL(window.location.href)
-    if (confirmed?.id) url.searchParams.set('id', confirmed.id)
-    else if (searchStatus === 'ready') url.searchParams.delete('id')
+    url.searchParams.delete('id')
+    url.searchParams.delete('name')
+    url.searchParams.delete('commit')
+    if (confirmed) setDeclarationParams(url, confirmed, localGraph.current?.meta.mathlib_commit)
     window.history.replaceState(null, '', url)
   }, [confirmed?.id, searchStatus])
 
@@ -104,6 +152,22 @@ function App() {
   }, [states])
 
   useEffect(() => {
+    if (!initial.linkedId && initial.linkedName) {
+      let live = true
+      setSearchStatus('searching')
+      void ensureStore().then((graph) => {
+        if (!live) return
+        const id = graph?.id(initial.linkedName!)
+        if (!graph || id === undefined) { setSearchStatus('error'); setSearchError(`${initial.linkedName} is not in the local store.`); return }
+        const declaration: Declaration = { id: initial.linkedName!, name: initial.linkedName!, sourceLabel: `Mathlib@${graph.meta.mathlib_commit?.slice(0, 7) ?? 'local'}` }
+        const commit = graph.meta.mathlib_commit ?? ''
+        if (initial.linkedCommit && !commit.startsWith(initial.linkedCommit)) setStoreNote(`This link was made against Mathlib ${initial.linkedCommit}; this store is Mathlib ${commit.slice(0, 7)}, so results may differ.`)
+        setConfirmed(declaration)
+        setCandidates([{ ...declaration, score: 0, loading: false }])
+        setSearchStatus('ready')
+      })
+      return () => { live = false }
+    }
     const id = initial.linkedId
     if (!id) return
     let live = true
@@ -124,12 +188,19 @@ function App() {
     return () => { live = false; controller.abort() }
   }, [])
 
-  function resetAnalysis(nextObjectives = objectives, index = methodIndex, definitionScope = includeDefinitions) {
-    if (!confirmed) return
+  function resetAnalysis(nextObjectives = objectives, index = methodIndex, definitionScope = includeDefinitions, root = confirmed) {
+    if (!root) return
     loggedTraversals.current.clear()
     const scoped = nextObjectives.map((objective) => definitionScope && objective.policy === 'proof' ? { ...objective, policy: 'body' as const } : objective)
     const policies = Array.from(new Set(scoped.map((objective) => objective.policy).filter((value): value is Policy => Boolean(value))))
-    explorer.current.setup(confirmed, policies, scoped, index)
+    const local = localGraph.current && policies.length ? localStates(localGraph.current, root, scoped, index) : null
+    if (local) {
+      explorer.current.cancel()
+      setStates(local)
+      setPauseRequested(false)
+      return
+    }
+    explorer.current.setup(root, policies, scoped, index)
     if (policies.length) explorer.current.start()
     setPauseRequested(false)
   }
@@ -234,6 +305,8 @@ function App() {
     searchController.current?.abort()
     dismissResolver()
     explorer.current.cancel()
+    setStoreMiss(null)
+    void ensureStore()
     setConfirmed(null)
     setIncludeDefinitions(false)
     setAnalysisStarted(false)
@@ -249,17 +322,27 @@ function App() {
     searchController.current = controller
     const serial = ++searchSerial.current
     const started = performance.now()
+    const local = localCandidates(searchQuery)
+    const offerLocal = async (): Promise<boolean> => {
+      const items = await local
+      if (!items.length || serial !== searchSerial.current) return false
+      setCandidates(items)
+      setSearchStatus('ready')
+      return true
+    }
     try {
       const found = await client.search(searchQuery, controller.signal)
       if (serial !== searchSerial.current) return
       debug('semantic search', { count: found.length, elapsedMs: Math.round(performance.now() - started), cache: client.cacheStats() })
-      if (!found.length) { setSearchStatus('empty'); return }
+      if (!found.length) { if (!await offerLocal()) setSearchStatus('empty'); return }
       setCandidates(found)
       setSearchStatus('ready')
+      void local.then((items) => { if (items.length && serial === searchSerial.current) setCandidates((current) => [...items.filter((item) => !current.some((candidate) => candidate.name === item.name && candidate.sourceLabel === item.sourceLabel)), ...current]) })
       window.setTimeout(() => document.getElementById('candidate-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30)
       hydrationTail.current = Promise.resolve().then(() => hydrate(isLeanNameQuery(searchQuery) ? found : found.slice(0, 5), controller, serial, isLeanNameQuery(searchQuery) ? searchQuery : undefined))
     } catch (error) {
       if (controller.signal.aborted || serial !== searchSerial.current) return
+      if (await offerLocal()) return
       setSearchStatus('error')
       setSearchError(formatError(error))
     }
@@ -288,7 +371,7 @@ function App() {
     if (!confirmed) return
     const url = new URL(window.location.href)
     url.search = ''
-    url.searchParams.set('id', confirmed.id)
+    setDeclarationParams(url, confirmed, localGraph.current?.meta.mathlib_commit)
     try {
       await navigator.clipboard.writeText(url.toString())
       setLinkCopied(true)
@@ -300,6 +383,7 @@ function App() {
 
   function changeResult() {
     dismissResolver()
+    setStoreMiss(null)
     explorer.current.cancel()
     setConfirmed(null)
     setIncludeDefinitions(false)
@@ -311,6 +395,8 @@ function App() {
     if (!confirmed || !objectives.length) return
     setAnalysisStarted(true)
     const needsIndex = objectives.some((item) => item.kind === 'induction' || item.kind === 'cases' || item.kind === 'absurd')
+    const graph = await ensureStore()
+    setStoreMiss(graph && graph.id(confirmed.name) === undefined ? lookupName(graph, confirmed.name, 6).filter((match) => match.reason !== 'substring') : null)
     let index = methodIndex
     if (needsIndex && !index) {
       setIndexStatus('loading')
@@ -326,6 +412,13 @@ function App() {
     }
     resetAnalysis(objectives, index)
     window.setTimeout(() => { const title = document.getElementById('results-title'); title?.scrollIntoView({ behavior: 'smooth', block: 'start' }); title?.focus({ preventScroll: true }) }, 30)
+  }
+
+  function analyseLocalName(name: string) {
+    const declaration: Declaration = { id: name, name, sourceLabel: `Mathlib@${localGraph.current?.meta.mathlib_commit?.slice(0, 7) ?? 'local'}` }
+    setConfirmed(declaration)
+    setStoreMiss(null)
+    resetAnalysis(objectives, methodIndex, includeDefinitions, declaration)
   }
 
   async function retryIndex() {
@@ -369,7 +462,12 @@ function App() {
             {confirmed && <QuestionSection objectives={objectives} draft={draft} onDraftChange={setDraft} onAdd={addAndRefresh} onRemove={removeObjective} onBegin={() => void begin()} analysisStarted={analysisStarted} resolver={resolver} onPick={pickResolved} onDismissResolver={dismissResolver} />}
 
             {analysisStarted && confirmed && <ResultsSection
-              theorem={confirmed}
+              theorem={states.values().next().value?.source === 'local' ? { ...confirmed, id: confirmed.name } : confirmed}
+              storeNote={states.values().next().value?.source === 'local' ? storeNote : ''}
+              storeLoading={storeStatus === 'loading'}
+              storeMiss={storeMiss}
+              onUseLocalName={analyseLocalName}
+              localGraph={states.values().next().value?.source === 'local' ? localGraph.current : null}
               objectives={scopedObjectives}
               states={states}
               methodIndex={methodIndex}

@@ -64,18 +64,18 @@ describe('questions de l’utilisateur', () => {
     expect(interpretObjective('case analysis')).toMatchObject({ capability: 'hint', policy: 'proof' })
     expect(interpretObjective('proof by contradiction')).toMatchObject({ capability: 'hint', policy: 'proof' })
   })
-  it('traduit un nom Lean exact en recherche de référence de preuve', () => {
+  it('maps an exact Lean name to a proof-reference search (French input accepted)', () => {
     expect(interpretObjective('dépend de Nat.zero_add')).toMatchObject({ kind: 'named', target: 'Nat.zero_add', policy: 'proof' })
   })
-  it('sépare la recherche de choix des questions de tactique', () => {
+  it('keeps the choice search apart from tactic questions (French input accepted)', () => {
     expect(interpretObjective('axiome du choix')).toMatchObject({ target: 'Classical.choice', policy: 'body' })
     expect(interpretObjective('raisonnement par l’absurde')).toMatchObject({ capability: 'hint' })
     expect(interpretObjective('récurrence')).toMatchObject({ capability: 'hint' })
   })
 })
 
-describe('voisinage TheoremGraph', () => {
-  it('ne suit que les arêtes sortant de la racine et refuse une cible sans nom', () => {
+describe('TheoremGraph neighborhood', () => {
+  it('follows only edges leaving the root and rejects a target without a name', () => {
     const raw = {
       root: { statement_id: IDS.em, name: 'Classical.em', statement: { kind: 'theorem', body: 'Classical.em (p : Prop) : p ∨ ¬p', paper_external_id: 'Mathlib_v427' } },
       nodes: [{ statement_id: IDS.em, name: 'Classical.em' }, { statement_id: IDS.spec, name: 'Classical.choose_spec' }, { statement_id: IDS.indefinite, name: 'Classical.indefiniteDescription' }],
@@ -91,7 +91,7 @@ describe('voisinage TheoremGraph', () => {
   })
 })
 
-describe('parcours des dépendances', () => {
+describe('dependency traversal', () => {
   const target = interpretObjective('axiome du choix')!
   it('identifies a definition root whose proof-only scan excludes its body edges', async () => {
     const root = { ...declarations[0], kind: 'def' }
@@ -126,7 +126,7 @@ describe('parcours des dépendances', () => {
       ['Classical.choice', 'def'],
     ])
   })
-  it('conserve un état incomplet sur erreur API', async () => {
+  it('keeps an incomplete state on API error', async () => {
     const state = await run('body', IDS.spec)
     expect(state.status).toBe('error')
     expect(state.frontier).toContain(IDS.spec)
@@ -156,7 +156,7 @@ describe('parcours des dépendances', () => {
     expect(state.discovered.has(signatureOnly.id)).toBe(false)
     expect(state.edges).toHaveLength(2)
   })
-  it('arrête les appels dès que tous les témoins demandés sont observés', async () => {
+  it('stops requests once every requested witness is observed', async () => {
     const visited: string[] = []
     const client = { neighborhood: async (id: string) => {
       visited.push(id)
@@ -181,11 +181,11 @@ describe('parcours des dépendances', () => {
     expect(state.edges).toHaveLength(2)
     expect(findWitness(state, objective)?.map((step) => step.name)).toEqual(['Classical.em', 'Classical.choice'])
   })
-  it('ne déclare une absence que si la clôture a été épuisée', async () => {
+  it('declares absence only when the closure is exhausted', async () => {
     const state = await run('proof')
     expect(state.completionReason).toBe('exhausted')
   })
-  it('attend tous les objectifs d’une même politique avant de s’arrêter', async () => {
+  it('waits for every objective of a policy before stopping', async () => {
     const calls: string[] = []
     const graph = new Map([
       [IDS.em, neighborhood(0, { index: 1, type: 'proof' })],
@@ -212,7 +212,7 @@ describe('parcours des dépendances', () => {
     expect(calls).toEqual([IDS.em, IDS.spec])
     expect(state.frontier).toContain(IDS.indefinite)
   })
-  it('permet de poursuivre le graphe après un arrêt sur témoin', async () => {
+  it('allows continuing the graph after stopping at a witness', async () => {
     const visited: string[] = []
     const client = { neighborhood: async (id: string) => {
       visited.push(id)
@@ -237,7 +237,7 @@ describe('parcours des dépendances', () => {
     expect(visited).toEqual([IDS.em, IDS.spec])
     expect(state.visited.size).toBe(2)
   })
-  it('arrête un voisin lent dès que son concurrent révèle le témoin, puis peut le reprendre', async () => {
+  it('aborts a slow neighbor once a concurrent one reveals the witness, then can resume it', async () => {
     const objective: Objective = { id: 'choice-proof-concurrent', original: 'Classical.choice', kind: 'named', target: 'Classical.choice', policy: 'proof', interpretation: '', capability: 'exact' }
     const started: string[] = []
     let slowAborted = false
@@ -266,8 +266,8 @@ describe('parcours des dépendances', () => {
   })
 })
 
-describe('requêtes partagées et annulation', () => {
-  it('garde une requête utile à un autre consommateur, puis annule la dernière', async () => {
+describe('shared requests and cancellation', () => {
+  it('keeps a request another consumer needs, then cancels the last one', async () => {
     const originalFetch = globalThis.fetch
     let underlyingSignal: AbortSignal | undefined
     const fetchMock = vi.fn((_url: string, options: RequestInit) => {
@@ -292,7 +292,7 @@ describe('requêtes partagées et annulation', () => {
       globalThis.fetch = originalFetch
     }
   })
-  it('réessaie un HTTP 429 avec Retry-After borné', async () => {
+  it('retries HTTP 429 with a bounded Retry-After', async () => {
     const originalFetch = globalThis.fetch
     const payload = { root: { statement_id: IDS.em, name: 'Classical.em' }, nodes: [], edges: [] }
     const fetchMock = vi.fn()

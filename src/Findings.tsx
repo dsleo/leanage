@@ -1,5 +1,6 @@
 import { ArrowRight, Check, LoaderCircle } from 'lucide-react'
 import type { Declaration, Objective, TraversalState } from './domain'
+import { collapseSteps } from './closureData'
 import { MathText } from './MathText'
 import { findEvidence, type Evidence, type MethodIndex } from './methods'
 
@@ -24,7 +25,8 @@ export function storyHeadline(evidence: Evidence, objective: Objective) {
   return evidence.grade === 'observed' ? `${method} enters through ${via ?? evidence.matchedName}, ${where}.` : `${method} may be used ${where}: a recorded tactic suggests it, but the proof version is unconfirmed.`
 }
 
-function EvidenceItem({ evidence, objective, theorem, names }: { evidence: Evidence; objective: Objective; theorem: Declaration; names?: Map<string, Declaration> }) {
+function EvidenceItem({ evidence: raw, objective, theorem, names }: { evidence: Evidence; objective: Objective; theorem: Declaration; names?: Map<string, Declaration> }) {
+  const evidence = { ...raw, path: collapseSteps(raw.path) }
   return <div className={`witness evidence-${evidence.grade}`}>
     <p className="story-headline">{storyHeadline(evidence, objective)}</p>
     <div className="witness-title">{evidence.grade === 'observed' ? <Check size={16} aria-hidden="true" /> : <span className="lead-mark" aria-hidden="true" />}<strong>{evidence.matchedName}</strong><span>{evidence.path.length - 1} {evidence.path.length === 2 ? 'edge' : 'edges'} · {evidence.location === 'root' ? 'selected proof' : evidence.location === 'definition' ? 'reached definition' : 'proof dependency'}</span></div>
@@ -58,8 +60,9 @@ export function QuestionCard({ objective, state, theorem, index, indexStatus, on
   const unsupported = objective.capability === 'unavailable'
   const exhausted = state?.status === 'complete' && state.completionReason === 'exhausted'
   const definitionScopeNeeded = exhausted && state.policy === 'proof' && isDefinition(theorem.kind) && state.visited.size === 1 && state.edges.length === 0 && state.rootDefinitionEdges > 0
+  const exactAbsence = exhausted && state?.source === 'local' && objective.kind === 'named'
   const indexMissing = objective.kind !== 'named' && indexStatus === 'error'
-  const badge = unsupported ? 'Undetermined' : primary?.grade === 'observed' ? 'Graph witness' : primary ? primary.joinStatus === 'different-version' ? 'Cross-version lead' : 'Possible method signal' : related ? 'Related evidence' : definitionScopeNeeded ? 'Definition scope needed' : exhausted && indexMissing ? 'Partial evidence' : exhausted ? 'No marker observed' : state?.status === 'limited' ? 'Limit reached' : state?.status === 'error' ? 'API error' : state?.status === 'paused' ? 'Paused' : 'Searching'
+  const badge = unsupported ? 'Undetermined' : primary?.grade === 'observed' ? 'Graph witness' : primary ? primary.joinStatus === 'different-version' ? 'Cross-version lead' : 'Possible method signal' : related ? 'Related evidence' : definitionScopeNeeded ? 'Definition scope needed' : exactAbsence ? 'Not in closure' : exhausted && indexMissing ? 'Partial evidence' : exhausted ? 'No marker observed' : state?.status === 'limited' ? 'Limit reached' : state?.status === 'error' ? 'API error' : state?.status === 'paused' ? 'Paused' : 'Searching'
   const kind = unsupported ? 'muted' : primary?.grade === 'observed' ? 'positive' : primary || related ? 'pending' : exhausted ? 'neutral' : state?.status === 'error' ? 'negative' : 'pending'
   return (
     <article className="answer-card">
@@ -81,6 +84,8 @@ export function QuestionCard({ objective, state, theorem, index, indexStatus, on
         </>
       ) : definitionScopeNeeded ? (
         <><p className="answer-note">This result is a definition. The proof-only scan has no proof edges to follow and excluded {state.rootDefinitionEdges} definition-body references. It cannot assess this question through those dependencies.</p><button type="button" className="evidence-inspect" onClick={onIncludeDefinitions}>Explore definition dependencies <ArrowRight size={13} /></button></>
+      ) : exactAbsence ? (
+        <p className="answer-note">Complete closure: none of the {state.visited.size} declarations reachable from this result is {objective.target}. This holds for the pinned Mathlib commit only; the store includes compiler-generated declarations.</p>
       ) : exhausted ? (
         <p className="answer-note">{indexMissing ? 'Recorded tactics could not be checked. ' : ''}No matching graph marker appeared in {state.visited.size} checked declarations. The detector and source coverage cannot establish that this method is absent.</p>
       ) : state?.status === 'limited' ? (

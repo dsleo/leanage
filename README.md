@@ -16,6 +16,17 @@ npm test
 npm run build
 ```
 
+### Local dependency store
+
+When `public/store/` exists, the app answers dependency questions from a local copy of the Mathlib dependency graph (complete closure, no API calls) and falls back to TheoremGraph when it is missing or the declaration is not in it. Build it once:
+
+```sh
+# download the 128 parquet shards of mathlib-initiative/mathlib-const-dep, then:
+python3 scripts/ingest_const_dep.py --shards path/to/shards --out public/store --check
+```
+
+The store is gitignored (about 24 MB gzipped). It needs `pyarrow` and `numpy`. Details and validation are in [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
+
 Vercel serves the app at [https://leanage.vercel.app](https://leanage.vercel.app). The configuration rewrites the guide route. The site caches neighborhood responses at the CDN for one hour; semantic search remains uncached.
 
 ## Use Leanage
@@ -27,7 +38,7 @@ flowchart LR
     C --> D[Explore the returned proof path]
 ```
 
-Search is semantic, so confirm the exact declaration. A graph path is evidence from TheoremGraph, not a proof certificate or a complete dependency closure. Recorded tactic matches are possible signals; their source revisions may differ. See [How it works](https://leanage.vercel.app/how-it-works) for interpretation and limits, and the [method detection plan](PLAN_DETECTION_METHODS.md) for source details.
+Search is semantic, so confirm the exact declaration. A graph path is evidence from TheoremGraph, not a proof certificate or a complete dependency closure. Recorded tactic matches are possible signals; their source revisions may differ. See [How it works](https://leanage.vercel.app/how-it-works) for interpretation and limits, and the [method validation record](docs/feasibility/method-validation.md) for source details.
 
 ## Code and decisions
 
@@ -42,6 +53,6 @@ Search is semantic, so confirm the exact declaration. A graph path is evidence f
 - [src/GraphExplorer.tsx](src/GraphExplorer.tsx): navigable graph, node details, and list view.
 - [src/HowItWorks.tsx](src/HowItWorks.tsx): standalone interpretation guide.
 
-The [graph hosting study](ETUDE_HEBERGEMENT_GRAPHE.md) preserves the original French feasibility notes and V2 options.
+The [Rocq and MathComp extension recommendation](docs/ROCQ_MATHCOMP_EXTENSION.md) describes the planned extraction strategy.
 
-The [method validation record](feasibility/method-validation.md) contains source checks and live results on mathematical examples.
+The [method validation record](docs/feasibility/method-validation.md) contains source checks and live results on mathematical examples.

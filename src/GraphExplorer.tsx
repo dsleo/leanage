@@ -19,8 +19,9 @@ function layout(state: TraversalState) {
   const byDepth = new Map<number, string[]>()
   const root = [...state.parents.entries()].find(([, parent]) => parent === null)?.[0]
   if (root) depths.set(root, 0)
-  const unresolved = [...state.discovered].filter((id) => id !== root)
-  for (let iteration = 0; unresolved.length && iteration < state.discovered.size; iteration++) {
+  const ids = state.viewIds ?? state.discovered
+  const unresolved = [...ids].filter((id) => id !== root)
+  for (let iteration = 0; unresolved.length && iteration < ids.size; iteration++) {
     let changed = false
     for (let index = unresolved.length - 1; index >= 0; index--) {
       const parent = state.parents.get(unresolved[index])
