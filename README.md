@@ -56,3 +56,7 @@ Search is semantic, so confirm the exact declaration. A graph path is evidence f
 The [Rocq and MathComp extension recommendation](docs/ROCQ_MATHCOMP_EXTENSION.md) describes the planned extraction strategy.
 
 The [method validation record](docs/feasibility/method-validation.md) contains source checks and live results on mathematical examples.
+
+## Store hosting
+
+The app loads the store from [dsleo/leanage-mathlib-store](https://huggingface.co/datasets/dsleo/leanage-mathlib-store) on Hugging Face, pinned to one revision (`STORE_URL` in `src/App.tsx`). Set `VITE_STORE_URL` (for example `/store`) to use a local copy. After re-ingesting for a new Mathlib commit, upload with `hf upload dsleo/leanage-mathlib-store <dir> . --repo-type dataset` and update the pinned revision. Updates are manual.

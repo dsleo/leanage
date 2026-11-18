@@ -143,3 +143,5 @@ To do after Phase 2, as a display and size decision, not a data deletion:
 
 
 Update 2026-11-18: closure panel checked at 390 px (no horizontal overflow); `_private.<Module>.0.` prefixes now collapse in `ownerName`. Still open: keyboard pass, store hosting, store commit in permalinks.
+
+Update 2026-11-18 (later): store published at huggingface.co/datasets/dsleo/leanage-mathlib-store (CORS verified, full load works from the app). Hosting decided: Hugging Face, manual updates. Done: generated steps collapsed in evidence paths, `commit=` in permalinks, keyboard/used-by/export checks.
