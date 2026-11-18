@@ -25,7 +25,8 @@ import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
 AXIOMS = ["propext", "Classical.choice", "Quot.sound", "sorryAx", "Lean.ofReduceBool"]
-GENERATED = re.compile(r"(^|\.)(_|match_\d|proof_\d|eq_\d|_simp_\d|_sunfold|_unary|_cstage|_boxed|_closed)")
+GENERATED = re.compile(r"(^|\.)(_[^.]*|(?:match|proof|eq|congr_eq|hcongr|unsafe|unsafe_impl)_\d+|eq_def|eq_unfold)(?=\.|$)")  # keep in sync with GENERATED_PART in src/closureData.ts
+PRIVATE = re.compile(r"^_private\..*?\.0\.")  # private real declarations: judge the name behind the prefix
 
 
 def vbyte(values: np.ndarray) -> bytes:
@@ -99,7 +100,7 @@ def write(out: Path, sorted_names, mod_dict, src, dst, raw_edges, source, xz=Fal
         sizes[f] = {"raw": len(raw), "gzip": len(packed)}
         if xz:
             sizes[f]["xz"] = len(lzma.compress(raw, preset=9))
-    gen = np.array([bool(GENERATED.search(s)) for s in sorted_names.to_pylist()])
+    gen = np.array([bool(GENERATED.search(PRIVATE.sub("", s))) for s in sorted_names.to_pylist()])
     meta = {
         **source,
         "nodes": n,

@@ -3,8 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { LocalGraph, type StoreFiles } from './localGraph'
 import {
   collapseSteps,
-  applyFilter, axiomAudit, closureRows, collapsePath, groupByModule, isGeneratedName, ownerName, parseFilter, toCsv, toDot, toJson,
+  applyFilter, axiomAudit, closureRows, collapsePath, groupByModule, isGeneratedName, isStructuralAuxName, ownerName, parseFilter, toCsv, toDot, toJson,
 } from './closureData'
+import { moduleCsv, moduleDot, moduleGraph, moduleGroup, moduleJson } from './moduleView'
 
 function varint(values: number[]): Uint8Array {
   const out: number[] = []
@@ -54,16 +55,27 @@ it('ownerName strips _private prefix', () => {
 
 describe('names', () => {
   it('detects generated names', () => {
-    for (const n of ['Foo._private', 'Foo.match_1', 'Foo.proof_2', 'Foo.eq_3', 'Foo._simp_1', 'Foo._sunfold', 'Foo._unary', 'Foo._cstage1', 'Foo._boxed', 'Foo._closed_1', '_x.Foo', 'Foo.match_1.x']) {
+    for (const n of ['Foo._private', 'Foo.match_1', 'Foo.proof_2', 'Foo.eq_3', 'Foo._simp_1', 'Foo._sunfold', 'Foo._unary', 'Foo._cstage1', 'Foo._boxed', 'Foo._closed_1', '_x.Foo', 'Foo.match_1.x', 'Foo.bar._proof_1_2', 'Foo.bar._simp_1_1', 'Foo.bar._aux_3', 'Foo.bar._sizeOf_1', 'Foo.mk._flat_ctor', 'Foo.bar.eq_def', 'Foo.bar.eq_unfold', 'Foo.match_1.congr_eq_2', 'Foo.hcongr_1', 'Foo.bar._lambda_1', 'Foo.bar._rarg', 'Foo.bar._elambda_2', 'Foo.bar._spec_3', 'Foo.bar._auto_1', 'Foo.bar._to_dual_1', 'Foo.instBar._proof_4', '_private.A.0.Foo.bar.match_1']) {
       expect(isGeneratedName(n), n).toBe(true)
     }
-    for (const n of ['Nat.add_comm', 'Foo.matcher', 'Foo.bar_1', 'Foo.proof', 'Foo.eq_', 'Foo.xmatch_1']) expect(isGeneratedName(n), n).toBe(false)
+    for (const n of ['Nat.add_comm', 'Foo.matcher', 'Foo.bar_1', 'Foo.proof', 'Foo.eq_', 'Foo.xmatch_1', 'Foo.match_1x', 'Foo.eq_def_x', 'Foo.instBar', 'Foo.rec', 'Foo.casesOn', 'Foo.noConfusion', 'Foo.mk.injEq', 'Foo.mk.sizeOf_spec', 'Foo.below', 'Foo.brecOn', 'Foo.bar.induct', 'Foo.eq', 'Foo.congr_eq', '_private.A.0.Foo.bar', '_private.Mathlib.B.C.0.Foo.baz_lemma']) expect(isGeneratedName(n), n).toBe(false)
+  })
+  it('structural auxiliaries stay visible but are classified', () => {
+    for (const n of ['Foo.rec', 'Foo.recOn', 'Foo.casesOn', 'Foo.noConfusion', 'Foo.noConfusionType', 'Foo.below', 'Foo.brecOn', 'Foo.mk.inj', 'Foo.mk.injEq', 'Foo.mk.sizeOf_spec', 'Foo.rec_2']) {
+      expect(isStructuralAuxName(n), n).toBe(true)
+      expect(isGeneratedName(n), n).toBe(false)
+    }
+    for (const n of ['Foo.bar', 'Foo.recx', 'Foo.bar._proof_1']) expect(isStructuralAuxName(n), n).toBe(false)
   })
   it('strips trailing generated components', () => {
     expect(ownerName('Nat.add_comm._f')).toBe('Nat.add_comm')
     expect(ownerName('Foo.bar.match_1')).toBe('Foo.bar')
     expect(ownerName('Foo.bar.match_1._unary.proof_2')).toBe('Foo.bar')
     expect(ownerName('Nat.add_comm')).toBe('Nat.add_comm')
+    expect(ownerName('Foo.bar.match_1.congr_eq_2')).toBe('Foo.bar')
+    expect(ownerName('Foo.instX._proof_1')).toBe('Foo.instX')
+    expect(ownerName('Foo.bar.eq_def')).toBe('Foo.bar')
+    expect(ownerName('Foo.mk.injEq')).toBe('Foo.mk.injEq')
     expect(ownerName('Foo._x.bar')).toBe('Foo._x.bar')
     expect(ownerName('_x')).toBe('_x')
     expect(ownerName('_x._y')).toBe('_x._y')
@@ -205,4 +217,42 @@ describe('real store', () => {
       expect(a.path[a.path.length - 1]).toBe(a.axiom)
     }
   }, 120_000)
+})
+
+describe('module view', () => {
+  const ids = closureRows(graph, rootId).map((r) => r.id)
+  it('aggregates counts and module edges inside the closure', () => {
+    const g = moduleGraph(graph, ids)
+    const by = Object.fromEntries(g.nodes.map((n) => [n.module, n]))
+    expect(by['Mathlib.Test.A'].count).toBe(2)
+    expect(by['Mathlib.Test.A'].dependsOn).toEqual(['Init.Nat', 'Mathlib.Test.B', 'Mathlib.Topology.Basic'])
+    expect(by['Mathlib.Test.B'].dependsOn).toEqual(['Init.Core'])
+    expect(by['Mathlib.Test.B'].usedBy).toEqual(['Mathlib.Test.A'])
+    expect(g.edges).toContainEqual(['Mathlib.Test.A', 'Mathlib.Test.B'])
+    expect(g.nodes.some((n) => n.dependsOn.includes(n.module))).toBe(false)
+  })
+  it('ignores edges leaving the closure and can group by namespace', () => {
+    const sub = moduleGraph(graph, [graph.id('Test.mid._f')!, graph.id('Test.leaf')!])
+    expect(sub.edges).toEqual([])
+    const g = moduleGraph(graph, ids, moduleGroup)
+    expect(g.nodes.map((n) => n.module).sort()).toEqual(['Init', 'Mathlib.Logic', 'Mathlib.Test', 'Mathlib.Topology'])
+    expect(moduleGroup('Mathlib')).toBe('Mathlib')
+    expect(moduleGroup('Std.Data.HashMap')).toBe('Std')
+  })
+  it('exports csv, json and dot', () => {
+    const g = moduleGraph(graph, ids)
+    expect(moduleCsv(g).split('\n')[0]).toBe('module,declarations,depends_on,used_by')
+    expect(JSON.parse(moduleJson(g, 'Test.root')).edges.length).toBe(g.edges.length)
+    expect(moduleDot(g)).toContain('"Mathlib.Test.A" -> "Mathlib.Test.B";')
+  })
+  it('handles a 50k closure fast', () => {
+    const n = 50000
+    const edges: Record<string, string[]> = {}
+    for (let i = 0; i < n; i++) edges[`N${String(i).padStart(6, '0')}`] = [`N${String((i + 1) % n).padStart(6, '0')}`, `N${String((i * 7 + 3) % n).padStart(6, '0')}`]
+    const big = new LocalGraph(files(edges))
+    const all = Array.from({ length: big.size }, (_, i) => i)
+    const t = Date.now()
+    expect(moduleGraph(big, all).nodes[0].count).toBe(n)
+    expect(Date.now() - t).toBeLessThan(5000)
+  })
 })

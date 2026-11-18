@@ -4,6 +4,7 @@ import {
   applyFilter, axiomAudit, closureRows, collapsePath, downloadText, groupByModule, parseFilter, toCsv, toDot, toJson,
   type ClosureRow,
 } from './closureData'
+import { moduleCsv, moduleDot, moduleGraph, moduleGroup, moduleJson } from './moduleView'
 import './closure.css'
 
 const PAGE = 200
@@ -39,6 +40,8 @@ export function ClosurePanel({ graph, rootName }: { graph: LocalGraph; rootName:
   const [depLimit, setDepLimit] = useState(PAGE)
   const [useLimit, setUseLimit] = useState(PAGE)
   const [copied, setCopied] = useState('')
+  const [byNamespace, setByNamespace] = useState(false)
+  const [modLimit, setModLimit] = useState(PAGE)
   const deferred = useDeferredValue(text)
 
   const audit = useMemo(() => (rootId === undefined ? [] : axiomAudit(graph, rootId)), [graph, rootId])
@@ -46,6 +49,7 @@ export function ClosurePanel({ graph, rootName }: { graph: LocalGraph; rootName:
   const users = useMemo(() => (rootId === undefined ? [] : closureRows(graph, rootId, 'dependents')), [graph, rootId])
   const generatedCount = useMemo(() => deps.reduce((n, row) => n + (row.generated ? 1 : 0), 0), [deps])
   const filtered = useMemo(() => applyFilter(deps, parseFilter(deferred, hideGenerated)), [deps, deferred, hideGenerated])
+  const mods = useMemo(() => moduleGraph(graph, deps.map((row) => row.id), byNamespace ? moduleGroup : undefined), [graph, deps, byNamespace])
   const chips = useMemo(() => groupByModule(filtered, 2).slice(0, 5), [filtered])
   const direct = useMemo(() => users.filter((row) => row.depth === 1 && !(hideGenerated && row.generated)).sort(byDepthName), [users, hideGenerated])
   const directGroups = useMemo(() => {
@@ -58,6 +62,7 @@ export function ClosurePanel({ graph, rootName }: { graph: LocalGraph; rootName:
   }, [direct])
 
   useEffect(() => setDepLimit(PAGE), [rootName, deferred, hideGenerated])
+  useEffect(() => setModLimit(PAGE), [rootName, byNamespace])
   useEffect(() => setUseLimit(PAGE), [rootName, hideGenerated])
   useEffect(() => { setText(''); setCopied('') }, [rootName])
 
@@ -73,6 +78,12 @@ export function ClosurePanel({ graph, rootName }: { graph: LocalGraph; rootName:
     if (ext === 'csv') downloadText(file, toCsv(filtered), 'text/csv')
     else if (ext === 'json') downloadText(file, toJson(graph, rootName, filtered), 'application/json')
     else downloadText(file, toDot(graph, filtered), 'text/vnd.graphviz')
+  }
+  const exportModules = (ext: 'csv' | 'json' | 'dot') => {
+    const file = `${rootName}.modules.${ext}`
+    if (ext === 'csv') downloadText(file, moduleCsv(mods), 'text/csv')
+    else if (ext === 'json') downloadText(file, moduleJson(mods, rootName), 'application/json')
+    else downloadText(file, moduleDot(mods), 'text/vnd.graphviz')
   }
   const dependents = Math.max(users.length - 1, 0)
   const shownDeps = filtered.slice(0, depLimit)
@@ -129,6 +140,30 @@ export function ClosurePanel({ graph, rootName }: { graph: LocalGraph; rootName:
         })}
         <ShowMore shown={shownUsers.length} total={direct.length} onMore={() => setUseLimit((n) => n + PAGE)} />
       </>}
+    </details>
+
+    <details open className="closure-section">
+      <summary><h3>Modules</h3></summary>
+      <p className="closure-note">{mods.nodes.length.toLocaleString()} {byNamespace ? 'namespaces' : 'modules'} hold the {deps.length.toLocaleString()} declarations of the closure, with {mods.edges.length.toLocaleString()} dependency edges between them (closure only, compiler-generated names included).</p>
+      <div className="closure-controls">
+        <label className="closure-check"><input type="checkbox" checked={byNamespace} onChange={(e) => setByNamespace(e.target.checked)} /> Group by top-level namespace</label>
+      </div>
+      <div className="closure-scroll" tabIndex={0} role="region" aria-label={`Modules in the closure of ${rootName}`}>
+        <table className="closure-modules">
+          <thead><tr><th scope="col">{byNamespace ? 'Namespace' : 'Module'}</th><th scope="col" className="num">Decls</th><th scope="col">Depends on</th><th scope="col">Used by</th></tr></thead>
+          <tbody>{mods.nodes.slice(0, modLimit).map((n) => <tr key={n.module}>
+            <td><code>{n.module}</code></td><td className="num">{n.count.toLocaleString()}</td>
+            <td className="closure-wrap">{n.dependsOn.length ? <details><summary>{n.dependsOn.length.toLocaleString()}</summary><ul className="closure-mods">{n.dependsOn.map((m) => <li key={m}><code>{m}</code></li>)}</ul></details> : 0}</td>
+            <td className="closure-wrap">{n.usedBy.length ? <details><summary>{n.usedBy.length.toLocaleString()}</summary><ul className="closure-mods">{n.usedBy.map((m) => <li key={m}><code>{m}</code></li>)}</ul></details> : 0}</td>
+          </tr>)}</tbody>
+        </table>
+      </div>
+      <ShowMore shown={Math.min(modLimit, mods.nodes.length)} total={mods.nodes.length} onMore={() => setModLimit((n) => n + PAGE)} />
+      <div className="closure-export">
+        <button type="button" className="closure-button" onClick={() => exportModules('csv')}>Modules CSV</button>
+        <button type="button" className="closure-button" onClick={() => exportModules('json')}>Modules JSON</button>
+        <button type="button" className="closure-button" onClick={() => exportModules('dot')}>Modules DOT</button>
+      </div>
     </details>
 
     <details open className="closure-section">

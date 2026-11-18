@@ -1,13 +1,27 @@
 import { AXIOM_NAMES, type LocalGraph } from './localGraph'
 
-const GENERATED_PART = /^(_|match_\d|proof_\d|eq_\d|_simp_\d|_sunfold|_unary|_cstage|_boxed|_closed)/
+// Level 1 (hidden, collapsed to the owner): compiler/elaborator auxiliaries nobody writes by hand.
+// Any component starting with `_` (_proof_N, _simp_N, _aux_N, _f, _unary, _sunfold, _cstage, _boxed, _closed,
+// _lambda/_rarg/_spec, _sizeOf_N, _flat_ctor, _auto_N, _default, _private, _hyg, _@, _to_dual_N, ...), plus the
+// unprefixed ones: match_N, proof_N, equation lemmas eq_N / eq_def / eq_unfold / congr_eq_N / hcongr_N, unsafe_N.
+// Keep in sync with GENERATED in scripts/ingest_const_dep.py.
+const GENERATED_PART = /^(_|(match|proof|eq|congr_eq|hcongr|unsafe|unsafe_impl)_\d+$|eq_def$|eq_unfold$)/
+// Level 2 (kept visible): structural auxiliaries Lean derives for every inductive/structure; users do cite them.
+const STRUCTURAL_PART = /^(rec|recOn|casesOn|noConfusion|noConfusionType|below|brecOn|binductionOn|ibelow|inj|injEq|sizeOf_spec|ctorIdx)(_\d+)?$/
+
+export function isStructuralAuxName(name: string): boolean {
+  return STRUCTURAL_PART.test(name.split('.').pop()!)
+}
+
+const PRIVATE_PREFIX = /^_private\..*?\.0\./
 
 export function isGeneratedName(name: string): boolean {
-  return name.split('.').some((part) => GENERATED_PART.test(part))
+  // `_private.<Module>.0.` only marks a private (real) declaration; judge the name behind it
+  return name.replace(PRIVATE_PREFIX, '').split('.').some((part) => GENERATED_PART.test(part))
 }
 
 export function ownerName(name: string): string {
-  name = name.replace(/^_private\..*?\.0\./, '') // private decls: _private.<Module>.0.<Name>
+  name = name.replace(PRIVATE_PREFIX, '') // private decls: _private.<Module>.0.<Name>
   const parts = name.split('.')
   let end = parts.length
   while (end > 0 && GENERATED_PART.test(parts[end - 1])) end--
