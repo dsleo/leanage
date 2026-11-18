@@ -3,7 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "bin": { "leanage": "cli/leanage.ts" },
   "scripts": {
+    "leanage": "tsx cli/leanage.ts",
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
     "build:method-index": "python3 scripts/build_method_index.py",
@@ -24,6 +26,7 @@
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^5.0.0",
     "jsdom": "^26.1.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.2",
     "vite": "^7.1.2",
     "vitest": "^4.1.11"

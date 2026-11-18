@@ -60,3 +60,16 @@ The [method validation record](docs/feasibility/method-validation.md) contains s
 ## Store hosting
 
 The app loads the store from [dsleo/leanage-mathlib-store](https://huggingface.co/datasets/dsleo/leanage-mathlib-store) on Hugging Face, pinned to one revision (`STORE_URL` in `src/App.tsx`). Set `VITE_STORE_URL` (for example `/store`) to use a local copy. After re-ingesting for a new Mathlib commit, upload with `hf upload dsleo/leanage-mathlib-store <dir> . --repo-type dataset` and update the pinned revision. Updates are manual.
+
+## Command line
+
+`leanage` queries the same store as the web app (`npm run leanage -- <command>` or `npx tsx cli/leanage.ts <command>`).
+
+```
+leanage axioms <name>
+leanage deps|rdeps <name> [--filter 'Topology.* -Classical.*'] [--no-generated] [--format text|json|csv|dot]
+leanage path <from> <to>
+leanage check <name> --forbid Classical.choice    # exit 1 if reached, 2 if name missing
+```
+
+`--json` is short for `--format json`. `--store <dir-or-url>` (or `LEANAGE_STORE`) selects the store; the default is the Hugging Face dataset, downloaded once into `~/.cache/leanage`. Unknown names print up to 5 suggestions and exit 2.
