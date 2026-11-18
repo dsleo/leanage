@@ -7,8 +7,8 @@ import pathlib
 import urllib.parse
 import urllib.request
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-SAMPLE = json.loads((ROOT / "feasibility/method-source-sample.json").read_text())["sampleMatches"]
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+SAMPLE = json.loads((ROOT / "docs/feasibility/method-source-sample.json").read_text())["sampleMatches"]
 INDEX = json.loads((ROOT / "public/method-markers.json").read_text())["markers"]
 URL = "https://api.theoremsearch.com"
 
@@ -46,7 +46,7 @@ def main():
         results = list(pool.map(lambda pair: check(*pair), jobs))
     output = {"checkedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(), "source": URL,
               "sampleSize": len(jobs), "results": results}
-    (ROOT / "feasibility/method-cross-source-sample.json").write_text(json.dumps(output, indent=2) + "\n")
+    (ROOT / "docs/feasibility/method-cross-source-sample.json").write_text(json.dumps(output, indent=2) + "\n")
     counts = {status: sum(item["status"] == status for item in results) for status in sorted({item["status"] for item in results})}
     print(json.dumps({"statuses": counts, "exactNameAndKind": sum(item.get("kindMatch", False) for item in results)}, indent=2))
 

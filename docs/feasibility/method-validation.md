@@ -2,7 +2,7 @@
 
 ## What is implemented
 
-Ouliproof searches TheoremGraph, asks the user to confirm a declaration, and traverses typed `proof` or `proof+def` edges with bounded, cached API requests. Reviewed graph constants can yield inspectable witnesses. A static, lazily loaded MathlibGraph index supplies exact tactic tokens for reached declaration names. A token is a **lead** because TheoremGraph does not expose the exact Mathlib source commit for its graph snapshot. The app records the path, source, rule, versions, and scan status; it never interprets an exhausted detector as mathematical absence. A confirmed graph witness ends an ordinary scan early. A cross-source tactic lead alone does not.
+Leanage searches TheoremGraph, asks the user to confirm a declaration, and traverses typed `proof` or `proof+def` edges with bounded, cached API requests. Reviewed graph constants can yield inspectable witnesses. A static, lazily loaded MathlibGraph index supplies exact tactic tokens for reached declaration names. A token is a **lead** because TheoremGraph does not expose the exact Mathlib source commit for its graph snapshot. The app records the path, source, rule, versions, and scan status; it never interprets an exhausted detector as mathematical absence. A confirmed graph witness ends an ordinary scan early. A cross-source tactic lead alone does not.
 
 ## Source and version audit
 
@@ -12,9 +12,9 @@ Ouliproof searches TheoremGraph, asks the user to confirm a declaration, and tra
 
 ## Mathlib source checks
 
-Run `python3 feasibility/audit_mathlib_source.py`. The checked [sample file](method-source-sample.json) contains ten induction, ten case-splitting, and ten contradiction declarations. For each, a declaration header and its recorded exact tactic token occur in the corresponding `.lean` file at the pinned full Mathlib commit. This checks source text around selected positive records; it does not measure detector recall, tactic expansion, or false-positive rate. The selection needed 15, 12, and 16 candidate records respectively to find ten source-text matches per category. For example, [`Submodule.pow_toAddSubmonoid`](https://github.com/leanprover-community/mathlib4/blob/534cf0b8f5267c3f20bf52f932ad5f9834187c35/Mathlib/Algebra/Algebra/Operations.lean#L327) directly uses both `induction` and `cases`.
+Run `python3 docs/feasibility/audit_mathlib_source.py`. The checked [sample file](method-source-sample.json) contains ten induction, ten case-splitting, and ten contradiction declarations. For each, a declaration header and its recorded exact tactic token occur in the corresponding `.lean` file at the pinned full Mathlib commit. This checks source text around selected positive records; it does not measure detector recall, tactic expansion, or false-positive rate. The selection needed 15, 12, and 16 candidate records respectively to find ten source-text matches per category. For example, [`Submodule.pow_toAddSubmonoid`](https://github.com/leanprover-community/mathlib4/blob/534cf0b8f5267c3f20bf52f932ad5f9834187c35/Mathlib/Algebra/Algebra/Operations.lean#L327) directly uses both `induction` and `cases`.
 
-Run `python3 feasibility/audit_cross_source.py`. Among those 30 source-matched names, 28 were exact-name results in the first 24 live TheoremGraph search results, and all 28 had compatible theorem kinds after normalizing TheoremGraph's `thm` to MathlibGraph's `theorem`. One search timed out and one did not surface the exact name in the first 24 results. This audit exposed and fixed an earlier adapter error that rejected `thm`/`theorem` matches. Neither matching names nor compatible kinds proves equal proof bodies; the TheoremGraph responses had no module or exact Mathlib commit.
+Run `python3 docs/feasibility/audit_cross_source.py`. Among those 30 source-matched names, 28 were exact-name results in the first 24 live TheoremGraph search results, and all 28 had compatible theorem kinds after normalizing TheoremGraph's `thm` to MathlibGraph's `theorem`. One search timed out and one did not surface the exact name in the first 24 results. This audit exposed and fixed an earlier adapter error that rejected `thm`/`theorem` matches. Neither matching names nor compatible kinds proves equal proof bodies; the TheoremGraph responses had no module or exact Mathlib commit.
 
 ## Live proof-chain examples
 
@@ -32,7 +32,7 @@ The graph's “Inspect in graph” action selected `Nat.recAux` and highlighted 
 
 ## Broader mathematical searches
 
-Run `python3 feasibility/probe_method_searches.py`; [raw results](method-search-results.json) are checked in. These are bounded, first-30-node live probes, not complete closure scans:
+Run `python3 docs/feasibility/probe_method_searches.py`; [raw results](method-search-results.json) are checked in. These are bounded, first-30-node live probes, not complete closure scans:
 
 | Mathematical query | User-confirmed TheoremGraph result | Checked / pending | Time | Signal |
 | --- | --- | ---: | ---: | --- |

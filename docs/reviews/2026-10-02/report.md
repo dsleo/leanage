@@ -1,4 +1,4 @@
-# Ouliproof UI, UX, and sharing review
+# Leanage UI, UX, and sharing review
 
 Date: 2 October 2026.
 Scope: read-only reviews by a mathematician-workflow reviewer, a hands-on browser tester, and an accessibility/deployment reviewer, followed by a synthesis and source-code check.
@@ -11,7 +11,7 @@ The project is already a local Git repository on `main`, with the prior applicat
 
 ## Evidence and coverage
 
-The reviewers exercised the app at desktop and 390 px mobile widths. Checked flows include a linked theorem and explicit confirmation, `Submodule.pow_toAddSubmonoid` induction, `Nat.add_eq_zero` contradiction, `Ideal.IsMaximal.isPrime'` no-hit, an unsupported method question, a live Euclid-lemma semantic search, graph/list mode, graph node inspection, JSON export, and `/how-it-works`. The [nine-case release suite](../../feasibility/release-smoke-tests.md) and [method validation](../../feasibility/method-validation.md) remain the reproducible baseline. The live semantic search took **33.3 seconds** once; this is one observation, not a latency distribution.
+The reviewers exercised the app at desktop and 390 px mobile widths. Checked flows include a linked theorem and explicit confirmation, `Submodule.pow_toAddSubmonoid` induction, `Nat.add_eq_zero` contradiction, `Ideal.IsMaximal.isPrime'` no-hit, an unsupported method question, a live Euclid-lemma semantic search, graph/list mode, graph node inspection, JSON export, and `/how-it-works`. The [nine-case release suite](../feasibility/release-smoke-tests.md) and [method validation](../../feasibility/method-validation.md) remain the reproducible baseline. The live semantic search took **33.3 seconds** once; this is one observation, not a latency distribution.
 
 The image evidence is [home](screenshots/home.png), [induction result](screenshots/induction-result.png), and [mobile result](screenshots/mobile-result.png). Browser fault injection for API/index outages, clipboard contents, and a current Vercel preview were not verified in this review.
 
@@ -58,7 +58,7 @@ The image evidence is [home](screenshots/home.png), [induction result](screensho
 
 1. Fix the broken source action, low-contrast text, full-screen focus behavior, and slow-search control. Keep the careful scientific wording.
 2. Rework the first finding and graph view for a mathematician's reading order. Confirm that the exact path and source are understandable without inspecting raw metadata.
-3. Publish a **Vercel preview** and run the [release smoke tests](../../feasibility/release-smoke-tests.md) on its real origin: `/tg` semantic search and statement JSON, static `/method-markers.json`, direct `/how-it-works` reload, link sharing, export, error states, and repeated requests showing cache behavior. [Vercel recommends previews for testing external rewrites](https://vercel.com/docs/routing/rewrites).
+3. Publish a **Vercel preview** and run the [release smoke tests](../feasibility/release-smoke-tests.md) on its real origin: `/tg` semantic search and statement JSON, static `/method-markers.json`, direct `/how-it-works` reload, link sharing, export, error states, and repeated requests showing cache behavior. [Vercel recommends previews for testing external rewrites](https://vercel.com/docs/routing/rewrites).
 4. Conduct a small pilot with mathematicians using both Lean-name and natural-language queries. Record search latency, misidentified candidates, interpretation of evidence grades, graph usability, and whether exported results are useful to cite. Fix misunderstandings before public promotion.
 5. Configure a Git remote and permanent hosting project when ready to share. The repository is local only today. No additional always-on backend or hosted MathlibGraph dataset is required for the current architecture.
 

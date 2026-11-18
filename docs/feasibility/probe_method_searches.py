@@ -9,7 +9,7 @@ import re
 import time
 import urllib.request
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = pathlib.Path(__file__).resolve().parents[2]
 MARKERS = json.loads((ROOT / "public/method-markers.json").read_text())["markers"]
 CASES = [
     ("compact maximum", "ContinuousOn.exists_isMaxOn'", "28ca120c-3282-4ae2-a63c-5288e144930d"),
@@ -93,4 +93,4 @@ if __name__ == "__main__":
         record = run(*case)
         result["cases"].append(record)
         print(json.dumps(record, ensure_ascii=False), flush=True)
-    (ROOT / "feasibility/method-search-results.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
+    (ROOT / "docs/feasibility/method-search-results.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")

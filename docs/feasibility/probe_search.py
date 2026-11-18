@@ -1,6 +1,6 @@
 """Measure a small fixed set of TheoremGraph formal search queries.
 
-Run: python3 feasibility/probe_search.py
+Run: python3 docs/feasibility/probe_search.py
 Requires: requests. Writes search-results.json beside this script.
 """
 

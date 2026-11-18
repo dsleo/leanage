@@ -12,7 +12,7 @@ import re
 import urllib.error
 import urllib.request
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = pathlib.Path(__file__).resolve().parents[2]
 INDEX = json.loads((ROOT / "public/method-markers.json").read_text())
 COMMIT = INDEX["mathlibCommit"]
 MARKERS = INDEX["markers"]
@@ -77,7 +77,7 @@ def main():
     result = {"checkedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
               "mathlibCommit": COMMIT, "method": "source text from declaration header to next top-level declaration; token text only",
               "attemptedRows": attempts, "sampleMatches": samples}
-    target = ROOT / "feasibility/method-source-sample.json"
+    target = ROOT / "docs/feasibility/method-source-sample.json"
     target.write_text(json.dumps(result, indent=2) + "\n")
     print(json.dumps({"attemptedRows": attempts, "sampleMatches": {key: len(value) for key, value in samples.items()}, "sourceModules": len(cache)}, indent=2))
 

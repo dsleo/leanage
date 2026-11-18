@@ -1,4 +1,4 @@
-# Ouliproof release smoke tests
+# Leanage release smoke tests
 
 Use the links below on the [local app](http://127.0.0.1:5187/). Each linked declaration must still be explicitly selected by the user before analysis begins. On a Vercel preview, replace `http://127.0.0.1:5187` with the preview origin and run the same checks.
 

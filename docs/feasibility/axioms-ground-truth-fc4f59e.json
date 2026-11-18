@@ -1,0 +1,181 @@
+{
+ "commit": "fc4f59e577feb1a4956671bc04ac18aaaf8cd842",
+ "toolchain": "leanprover/lean4:v4.36.0",
+ "results": {
+  "Nat.add_comm": [],
+  "Nat.rec": [],
+  "List.length_append": [
+   "propext"
+  ],
+  "Nat.add_assoc": [],
+  "Nat.mul_comm": [],
+  "Nat.succ_le_of_lt": [],
+  "funext": [
+   "Quot.sound"
+  ],
+  "propext": [
+   "propext"
+  ],
+  "Classical.em": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ],
+  "Classical.choice": [
+   "Classical.choice"
+  ],
+  "Classical.byContradiction": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ],
+  "Classical.not_not": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ],
+  "Classical.choose_spec": [
+   "Classical.choice"
+  ],
+  "Quot.sound": [
+   "Quot.sound"
+  ],
+  "Nat.add": [],
+  "List.map": [],
+  "Nat.decEq": [],
+  "Nat.le_refl": [],
+  "Nat.lt_irrefl": [],
+  "Nat.zero_add": [],
+  "List.map_append": [
+   "propext"
+  ],
+  "Option.some_ne_none": [],
+  "Decidable.em": [],
+  "Nat.sub_add_cancel": [
+   "propext"
+  ],
+  "Bool.and_comm": [],
+  "add_comm": [],
+  "mul_comm": [],
+  "add_assoc": [],
+  "mul_add": [],
+  "Finset.sum_comm": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ],
+  "Finset.sum_const": [
+   "propext",
+   "Quot.sound"
+  ],
+  "Polynomial.degree_mul": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ],
+  "Polynomial.degree_add_le": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ],
+  "Real.sqrt_nonneg": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ],
+  "Real.sqrt": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ],
+  "Real.exp_pos": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ],
+  "Real.pi_gt_three": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ],
+  "IsCompact.exists_isMinOn": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ],
+  "Continuous.comp": [],
+  "continuous_id": [],
+  "Nat.Prime.dvd_or_dvd": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ],
+  "Nat.prime_two": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ],
+  "Nat.exists_infinite_primes": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ],
+  "CategoryTheory.Yoneda.fullyFaithful": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ],
+  "CategoryTheory.Category.assoc": [],
+  "le_refl": [],
+  "le_antisymm": [],
+  "max_comm": [
+   "propext"
+  ],
+  "lt_irrefl": [],
+  "Set.ext": [
+   "propext",
+   "Quot.sound"
+  ],
+  "Finset.card_union_add_card_inter": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ],
+  "Int.emod_emod_of_dvd": [
+   "propext"
+  ],
+  "Real.instField": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ],
+  "Real.sqrt_sq": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ],
+  "Nat.card_eq_fintype_card": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ],
+  "MeasureTheory.measure_mono": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ],
+  "Subgroup.mem_carrier": [
+   "propext"
+  ],
+  "Fintype.card_fin": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ],
+  "Complex.ext_iff": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ]
+ }
+}

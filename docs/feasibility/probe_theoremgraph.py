@@ -1,6 +1,6 @@
 """Small, bounded, reproducible probe of TheoremGraph's formal proof edges.
 
-Run: python3 feasibility/probe_theoremgraph.py
+Run: python3 docs/feasibility/probe_theoremgraph.py
 Requires: requests. Results are written beside this script.
 This is an API feasibility probe, not the application's traversal engine.
 """
