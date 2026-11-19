@@ -24,6 +24,21 @@ export interface TacticLegend {
   bits: Record<string, string>
 }
 
+// Same-commit flags extracted from Lean (scripts/extract_flags.lean): one byte per node.
+export const FLAG_INSTANCE = 1
+export const FLAG_PROJECTION = 2
+export const FLAG_COE = 4
+export const FLAG_COE_DECL = 8
+export const FLAG_CLASS = 16
+export const FLAG_STRUCTURE = 32
+export const FLAG_STRUCTURE_CTOR = 64
+export const FLAG_UNKNOWN = 128
+export const BOILERPLATE_MASK = FLAG_INSTANCE | FLAG_PROJECTION | FLAG_COE | FLAG_COE_DECL
+export interface FlagsLegend {
+  mathlib_commit?: string
+  bits?: Record<string, string>
+}
+
 export type Direction = 'dependencies' | 'dependents'
 
 export interface Reach {
@@ -80,6 +95,7 @@ export class LocalGraph {
   private axiomIds?: Map<number, string>
   private tacticBits?: Uint16Array
   private tacticLegend: string[] = []
+  private flagBytes?: Uint8Array
 
   constructor(files: StoreFiles) {
     this.meta = files.meta
@@ -162,6 +178,30 @@ export class LocalGraph {
     const out: string[] = []
     for (let b = 0; b < 15; b++) if (bits & (1 << b) && this.tacticLegend[b]) out.push(this.tacticLegend[b])
     return out
+  }
+
+  /** Optional same-commit flags: one byte per node. Anything inconsistent with the store is ignored. */
+  setFlags(bytes: Uint8Array, legend: FlagsLegend): boolean {
+    if (bytes.length !== this.size) return false
+    if (legend.mathlib_commit && this.meta.mathlib_commit && legend.mathlib_commit !== this.meta.mathlib_commit) return false
+    this.flagBytes = bytes
+    return true
+  }
+
+  get hasFlags(): boolean {
+    return this.flagBytes !== undefined
+  }
+
+  /** Flag bits of a node, or null when the store has no flags or Lean did not report this node. */
+  flagsOf(id: number): number | null {
+    const b = this.flagBytes?.[id]
+    return b === undefined || b & FLAG_UNKNOWN ? null : b
+  }
+
+  /** True for instances, projection functions and coercions; false when unflagged or unknown. */
+  isBoilerplate(id: number): boolean {
+    const b = this.flagBytes?.[id]
+    return b !== undefined && !(b & FLAG_UNKNOWN) && (b & BOILERPLATE_MASK) !== 0
   }
 
   private ordered(): boolean {
@@ -334,6 +374,13 @@ export async function loadLocalGraph(baseUrl: string, signal?: AbortSignal): Pro
   try {
     const [bytes, legend] = await Promise.all([get('tactics.u16'), get('tactics.json')])
     graph.setTactics(bytes, JSON.parse(decoder.decode(legend)) as TacticLegend)
+  } catch (error) {
+    if (signal?.aborted) throw error
+  }
+  // Optional: a store without flags.* simply cannot hide instances and coercions.
+  try {
+    const [bytes, legend] = await Promise.all([get('flags.u8'), get('flags.json')])
+    graph.setFlags(bytes, JSON.parse(decoder.decode(legend)) as FlagsLegend)
   } catch (error) {
     if (signal?.aborted) throw error
   }

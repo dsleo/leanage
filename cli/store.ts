@@ -4,9 +4,9 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { gunzipSync } from 'node:zlib'
-import { LocalGraph, type StoreMeta } from '../src/localGraph'
+import { LocalGraph, type FlagsLegend, type StoreMeta } from '../src/localGraph'
 
-export const DEFAULT_STORE = 'https://huggingface.co/datasets/dsleo/leanage-mathlib-store/resolve/13ecd2e0cc59fceef07ca1d03bee6d1032c25242'
+export const DEFAULT_STORE = 'https://huggingface.co/datasets/dsleo/leanage-mathlib-store/resolve/a8434c821ffa646e896e1f9b7b7f37ca71acb339'
 const FILES = ['names.txt', 'modules.txt', 'node_module.u32', 'degrees.vbyte', 'targets.vbyte', 'meta.json']
 
 const unzip = (b: Buffer): Buffer => (b.length > 1 && b[0] === 0x1f && b[1] === 0x8b ? gunzipSync(b) : b)
@@ -41,9 +41,14 @@ export async function loadStore(spec: string): Promise<LocalGraph> {
   const dir = /^https?:\/\//.test(spec) ? await cacheDir(spec) : undefined
   const [names, modules, nodeModule, degrees, targets, meta] = await Promise.all(FILES.map(async (f) => unzip(await readStoreFile(spec, f, dir))))
   const text = (b: Buffer) => b.toString('utf8')
-  return new LocalGraph({
+  const graph = new LocalGraph({
     names: text(names), modules: text(modules),
     nodeModule: new Uint8Array(nodeModule), degrees: new Uint8Array(degrees), targets: new Uint8Array(targets),
     meta: JSON.parse(text(meta)) as StoreMeta,
   })
+  try { // optional: stores without flags.* cannot hide instances and coercions
+    const [bytes, legend] = await Promise.all(['flags.u8', 'flags.json'].map(async (f) => unzip(await readStoreFile(spec, f, dir))))
+    graph.setFlags(new Uint8Array(bytes), JSON.parse(text(legend)) as FlagsLegend)
+  } catch { /* no flags */ }
+  return graph
 }

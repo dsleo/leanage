@@ -108,8 +108,8 @@ describe('filters', () => {
   const rows = closureRows(graph, rootId)
   const names = (input: string, hide = false) => applyFilter(rows, parseFilter(input, hide)).map((r) => r.name).sort()
   it('parses tokens', () => {
-    expect(parseFilter('Topology.* -Classical.* -foo Nat zero', true)).toEqual({ include: ['Topology.*'], exclude: ['Classical.*', 'foo'], text: 'Nat zero', hideGenerated: true })
-    expect(parseFilter('   ')).toEqual({ include: [], exclude: [], text: '', hideGenerated: false })
+    expect(parseFilter('Topology.* -Classical.* -foo Nat zero', true)).toEqual({ include: ['Topology.*'], exclude: ['Classical.*', 'foo'], text: 'Nat zero', hideGenerated: true, hideBoilerplate: false })
+    expect(parseFilter('   ')).toEqual({ include: [], exclude: [], text: '', hideGenerated: false, hideBoilerplate: false })
   })
   it('includes by name or module prefix, OR-ed', () => {
     expect(names('Topology.*')).toEqual(['Topology.open'])
@@ -256,3 +256,14 @@ describe('module view', () => {
     expect(Date.now() - t).toBeLessThan(5000)
   })
 })
+
+describe('hideBoilerplate filter', () => {
+  const row = (name: string, boilerplate: boolean) => ({ id: 0, name, module: 'M', depth: 1, generated: false, boilerplate })
+  const rows = [row('A.inst', true), row('A.lemma', false)]
+  it('only hides flagged rows when asked and keeps the default behaviour', () => {
+    expect(parseFilter('x')).toMatchObject({ hideBoilerplate: false })
+    expect(applyFilter(rows, parseFilter('', false, false)).map((r) => r.name)).toEqual(['A.inst', 'A.lemma'])
+    expect(applyFilter(rows, parseFilter('', false, true)).map((r) => r.name)).toEqual(['A.lemma'])
+  })
+})
+

@@ -37,6 +37,7 @@ export function ClosurePanel({ graph, rootName }: { graph: LocalGraph; rootName:
   const rootId = graph.id(rootName)
   const [text, setText] = useState('')
   const [hideGenerated, setHideGenerated] = useState(true)
+  const [hideBoilerplate, setHideBoilerplate] = useState(false)
   const [depLimit, setDepLimit] = useState(PAGE)
   const [useLimit, setUseLimit] = useState(PAGE)
   const [copied, setCopied] = useState('')
@@ -48,7 +49,9 @@ export function ClosurePanel({ graph, rootName }: { graph: LocalGraph; rootName:
   const deps = useMemo(() => (rootId === undefined ? [] : closureRows(graph, rootId, 'dependencies').slice().sort(byDepthName)), [graph, rootId])
   const users = useMemo(() => (rootId === undefined ? [] : closureRows(graph, rootId, 'dependents')), [graph, rootId])
   const generatedCount = useMemo(() => deps.reduce((n, row) => n + (row.generated ? 1 : 0), 0), [deps])
-  const filtered = useMemo(() => applyFilter(deps, parseFilter(deferred, hideGenerated)), [deps, deferred, hideGenerated])
+  const boilerplateCount = useMemo(() => deps.reduce((n, row) => n + (row.boilerplate ? 1 : 0), 0), [deps])
+  const hideBoiler = hideBoilerplate && graph.hasFlags
+  const filtered = useMemo(() => applyFilter(deps, parseFilter(deferred, hideGenerated, hideBoiler)), [deps, deferred, hideGenerated, hideBoiler])
   const mods = useMemo(() => moduleGraph(graph, deps.map((row) => row.id), byNamespace ? moduleGroup : undefined), [graph, deps, byNamespace])
   const chips = useMemo(() => groupByModule(filtered, 2).slice(0, 5), [filtered])
   const direct = useMemo(() => users.filter((row) => row.depth === 1 && !(hideGenerated && row.generated)).sort(byDepthName), [users, hideGenerated])
@@ -61,7 +64,7 @@ export function ClosurePanel({ graph, rootName }: { graph: LocalGraph; rootName:
     return [...groups].sort((a, b) => b[1].length - a[1].length || (a[0] < b[0] ? -1 : 1))
   }, [direct])
 
-  useEffect(() => setDepLimit(PAGE), [rootName, deferred, hideGenerated])
+  useEffect(() => setDepLimit(PAGE), [rootName, deferred, hideGenerated, hideBoiler])
   useEffect(() => setModLimit(PAGE), [rootName, byNamespace])
   useEffect(() => setUseLimit(PAGE), [rootName, hideGenerated])
   useEffect(() => { setText(''); setCopied('') }, [rootName])
@@ -112,12 +115,13 @@ export function ClosurePanel({ graph, rootName }: { graph: LocalGraph; rootName:
     <details open className="closure-section">
       <summary><h3>Dependencies</h3></summary>
       <p className="closure-note" aria-live="polite">
-        {deps.length.toLocaleString()} total · {filtered.length.toLocaleString()} shown after filter · {hideGenerated ? generatedCount.toLocaleString() : 0} compiler-generated hidden
+        {deps.length.toLocaleString()} total · {filtered.length.toLocaleString()} shown after filter · {hideGenerated ? generatedCount.toLocaleString() : 0} compiler-generated hidden{hideBoiler ? ` · ${boilerplateCount.toLocaleString()} instances and coercions hidden` : ''}
       </p>
       <div className="closure-controls">
         <label htmlFor="closure-filter">Filter</label>
         <input id="closure-filter" type="search" value={text} onChange={(e) => setText(e.target.value)} placeholder="Topology.* -Classical.* continuous" autoComplete="off" spellCheck={false} aria-describedby="closure-filter-help" />
         <label className="closure-check"><input type="checkbox" checked={hideGenerated} onChange={(e) => setHideGenerated(e.target.checked)} /> Hide compiler-generated names ({generatedCount.toLocaleString()})</label>
+        <label className="closure-check"><input type="checkbox" checked={hideBoiler} disabled={!graph.hasFlags} onChange={(e) => setHideBoilerplate(e.target.checked)} /> Hide instances and coercions{graph.hasFlags ? ` (${boilerplateCount.toLocaleString()})` : ' (unavailable: this store has no flags)'}</label>
       </div>
       <p id="closure-filter-help" className="closure-help">Words separated by spaces. A word ending in <code>.*</code> matches a name prefix; a leading <code>-</code> excludes; other words match as substrings.</p>
       {chips.length > 0 && <p className="closure-chips"><span>Top modules:</span>{chips.map((chip) => <button key={chip.module} type="button" className="status-pill neutral" onClick={() => setText(`${chip.module}.*`)}>{chip.module} · {chip.count.toLocaleString()}</button>)}</p>}

@@ -14,6 +14,7 @@ const USAGE = `leanage <command> [options]
 options:
   --filter '<expr>'         e.g. 'Topology.* -Classical.* word'  (deps, rdeps)
   --no-generated            hide compiler-generated names
+  --no-boilerplate          hide instances, projections and coercions (needs flags.u8 in the store; otherwise an error)
   --format text|json|csv|dot   (--json is a shortcut for --format json)
   --limit <n>               max nodes for dot output (default 300)
   --store <dir-or-url>      default: $LEANAGE_STORE, else the Hugging Face store (cached in ~/.cache/leanage)
@@ -27,7 +28,7 @@ export async function main(argv: string[]): Promise<Result> {
     parsed = parseArgs({
       args: argv, allowPositionals: true,
       options: {
-        filter: { type: 'string' }, 'no-generated': { type: 'boolean' }, format: { type: 'string' }, json: { type: 'boolean' },
+        filter: { type: 'string' }, 'no-generated': { type: 'boolean' }, 'no-boilerplate': { type: 'boolean' }, format: { type: 'string' }, json: { type: 'boolean' },
         forbid: { type: 'string', multiple: true }, store: { type: 'string' }, limit: { type: 'string' }, help: { type: 'boolean', short: 'h' },
       },
     })
@@ -39,12 +40,13 @@ export async function main(argv: string[]): Promise<Result> {
   const format = values.json ? 'json' : (values.format ?? 'text')
   if (!['text', 'json', 'csv', 'dot'].includes(format)) return { out: '', err: `Unknown format: ${format}\n`, code: 2 }
   const o: Options = {
-    ...defaultOptions, format: format as Options['format'], filter: values.filter ?? '', noGenerated: !!values['no-generated'],
+    ...defaultOptions, format: format as Options['format'], filter: values.filter ?? '', noGenerated: !!values['no-generated'], noBoilerplate: !!values['no-boilerplate'],
     forbid: (values.forbid ?? []).flatMap((s) => s.split(',')).filter(Boolean), limit: Number(values.limit ?? defaultOptions.limit),
   }
   const need = cmd === 'path' ? 2 : 1
   if (!['axioms', 'deps', 'rdeps', 'path', 'check'].includes(cmd) || args.length !== need) return { out: '', err: USAGE, code: 2 }
   const graph = await loadStore(values.store ?? process.env.LEANAGE_STORE ?? DEFAULT_STORE)
+  if (o.noBoilerplate && !graph.hasFlags) return { out: '', err: '--no-boilerplate needs a store with flags.u8, and this one has none\n', code: 2 }
   switch (cmd) {
     case 'axioms': return axiomsCmd(graph, args[0], o)
     case 'deps': return closureCmd(graph, args[0], 'dependencies', o)

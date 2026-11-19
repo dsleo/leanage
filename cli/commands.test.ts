@@ -25,6 +25,17 @@ function build() {
 const g = new LocalGraph(build())
 const o = defaultOptions
 
+describe('cli --no-boilerplate', () => {
+  it('drops flagged instances and coercions from deps', () => {
+    const h = new LocalGraph(build())
+    const flags = new Uint8Array(names.length)
+    flags[h.id('A.lem')!] = 1
+    h.setFlags(flags, {})
+    expect(closureCmd(h, 'A.thm', 'dependencies', { ...defaultOptions, noBoilerplate: true }).out).not.toContain('A.lem\t')
+    expect(closureCmd(h, 'A.thm', 'dependencies', defaultOptions).out).toContain('A.lem\t')
+  })
+})
+
 describe('cli commands', () => {
   it('axioms reports collapsed evidence path', () => {
     const r = axiomsCmd(g, 'A.thm', o)

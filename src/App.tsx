@@ -17,7 +17,7 @@ import './flow.css'
 import './styles.css'
 
 const client = new TheoremGraphClient()
-const STORE_URL = (import.meta.env.VITE_STORE_URL as string | undefined) ?? 'https://huggingface.co/datasets/dsleo/leanage-mathlib-store/resolve/13ecd2e0cc59fceef07ca1d03bee6d1032c25242'
+const STORE_URL = (import.meta.env.VITE_STORE_URL as string | undefined) ?? 'https://huggingface.co/datasets/dsleo/leanage-mathlib-store/resolve/a8434c821ffa646e896e1f9b7b7f37ca71acb339'
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Name permalinks carry the Mathlib commit they were made against, so a different store can say so.

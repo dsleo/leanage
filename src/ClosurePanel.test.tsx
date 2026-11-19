@@ -73,6 +73,28 @@ describe('ClosurePanel', () => {
     expect(rowCount()).toBe(hidden + 1)
   })
 
+  it('disables the instances and coercions toggle when the store has no flags', () => {
+    render(<ClosurePanel graph={small} rootName="Test.root" />)
+    const box = screen.getByLabelText(/Hide instances and coercions/) as HTMLInputElement
+    expect(box.disabled).toBe(true)
+    expect(box.checked).toBe(false)
+  })
+
+  it('hides instances and coercions with their count when flags exist', () => {
+    const graph = new LocalGraph(files({ 'Test.root': ['Test.inst', 'Test.lemma', 'Test.cast'] }))
+    const flags = new Uint8Array(graph.size)
+    flags[graph.id('Test.inst')!] = 1
+    flags[graph.id('Test.cast')!] = 4
+    expect(graph.setFlags(flags, {})).toBe(true)
+    render(<ClosurePanel graph={graph} rootName="Test.root" />)
+    const before = rowCount()
+    const box = screen.getByLabelText(/Hide instances and coercions \(2\)/) as HTMLInputElement
+    expect(box.disabled).toBe(false)
+    fireEvent.click(box)
+    expect(rowCount()).toBe(before - 2)
+    expect(screen.getByText(/2 instances and coercions hidden/)).toBeTruthy()
+  })
+
   it('caps rows at 200 and shows more on request', () => {
     render(<ClosurePanel graph={chain} rootName="Chain.root" />)
     fireEvent.click(screen.getByLabelText(/Hide compiler-generated names/))

@@ -67,7 +67,7 @@ The app loads the store from [dsleo/leanage-mathlib-store](https://huggingface.c
 
 ```
 leanage axioms <name>
-leanage deps|rdeps <name> [--filter 'Topology.* -Classical.*'] [--no-generated] [--format text|json|csv|dot]
+leanage deps|rdeps <name> [--filter 'Topology.* -Classical.*'] [--no-generated] [--no-boilerplate] [--format text|json|csv|dot]
 leanage path <from> <to>
 leanage check <name> --forbid Classical.choice    # exit 1 if reached, 2 if name missing
 ```

@@ -276,3 +276,44 @@ describe('optional tactics file', () => {
     expect(graph.tacticsOf(graph.id('B')!)).toEqual(['induction'])
   })
 })
+
+describe('optional flags file', () => {
+  const files = buildFiles(['A', 'B', 'C'], { A: ['B', 'C'] })
+  const table: Record<string, Uint8Array | string> = {
+    'names.txt': files.names, 'modules.txt': files.modules, 'node_module.u32': files.nodeModule,
+    'degrees.vbyte': files.degrees, 'targets.vbyte': files.targets, 'meta.json': JSON.stringify({ ...files.meta, mathlib_commit: 'abc' }),
+  }
+  function serve(extra: Record<string, Response>) {
+    globalThis.fetch = (async (url: string) => {
+      const file = String(url).replace('/store/', '')
+      if (extra[file]) return extra[file].clone()
+      if (table[file] !== undefined) return new Response((typeof table[file] === 'string' ? new TextEncoder().encode(table[file] as string) : table[file]) as BodyInit, { status: 200, headers: { 'content-type': 'application/octet-stream' } })
+      return new Response('nope', { status: 404 })
+    }) as typeof fetch
+  }
+  const html = () => new Response('<html></html>', { status: 200, headers: { 'content-type': 'text/html' } })
+  const legend = (commit: string) => new Response(JSON.stringify({ mathlib_commit: commit }), { status: 200 })
+  const flagBytes = (...b: number[]) => new Response(Uint8Array.from(b) as BodyInit, { status: 200 })
+
+  it('has no flags when missing, HTML, wrong length or another commit', async () => {
+    serve({})
+    expect((await loadLocalGraph('/store')).hasFlags).toBe(false)
+    serve({ 'flags.u8': html(), 'flags.u8.gz': html(), 'flags.json': html(), 'flags.json.gz': html() })
+    expect((await loadLocalGraph('/store')).hasFlags).toBe(false)
+    serve({ 'flags.u8': flagBytes(1, 0), 'flags.json': legend('abc') })
+    expect((await loadLocalGraph('/store')).hasFlags).toBe(false)
+    serve({ 'flags.u8': flagBytes(1, 0, 0), 'flags.json': legend('other') })
+    const graph = await loadLocalGraph('/store')
+    expect(graph.hasFlags).toBe(false)
+    expect(graph.isBoilerplate(0)).toBe(false)
+    expect(graph.flagsOf(0)).toBeNull()
+  })
+  it('loads flags, treats the unknown bit as no information', async () => {
+    serve({ 'flags.u8': flagBytes(1, 2 | 32, 128 | 1), 'flags.json': legend('abc') })
+    const graph = await loadLocalGraph('/store')
+    expect(graph.hasFlags).toBe(true)
+    expect([0, 1, 2].map((i) => graph.isBoilerplate(i))).toEqual([true, true, false])
+    expect([0, 1, 2].map((i) => graph.flagsOf(i))).toEqual([1, 34, null])
+  })
+})
+

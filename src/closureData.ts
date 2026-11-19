@@ -49,7 +49,7 @@ export function collapseSteps<T extends { name: string }>(steps: T[]): T[] {
   return out
 }
 
-export interface ClosureRow { id: number; name: string; module: string; depth: number; generated: boolean }
+export interface ClosureRow { id: number; name: string; module: string; depth: number; generated: boolean; boilerplate: boolean }
 
 export function closureRows(graph: LocalGraph, rootId: number, direction: 'dependencies' | 'dependents' = 'dependencies'): ClosureRow[] {
   const { order, depth } = graph.reach(rootId, direction)
@@ -57,15 +57,15 @@ export function closureRows(graph: LocalGraph, rootId: number, direction: 'depen
   for (let i = 0; i < order.length; i++) {
     const id = order[i]
     const name = graph.name(id)
-    rows.push({ id, name, module: graph.module(id), depth: depth[id], generated: isGeneratedName(name) })
+    rows.push({ id, name, module: graph.module(id), depth: depth[id], generated: isGeneratedName(name), boilerplate: graph.isBoilerplate(id) })
   }
   return rows
 }
 
-export interface RowFilter { include: string[]; exclude: string[]; text: string; hideGenerated: boolean }
+export interface RowFilter { include: string[]; exclude: string[]; text: string; hideGenerated: boolean; hideBoilerplate: boolean }
 
 // include/exclude keep the token as typed minus the leading '-', e.g. 'Topology.*' or 'foo'.
-export function parseFilter(input: string, hideGenerated = false): RowFilter {
+export function parseFilter(input: string, hideGenerated = false, hideBoilerplate = false): RowFilter {
   const include: string[] = []
   const exclude: string[] = []
   const text: string[] = []
@@ -76,7 +76,7 @@ export function parseFilter(input: string, hideGenerated = false): RowFilter {
     } else if (token.endsWith('.*')) include.push(token)
     else text.push(token)
   }
-  return { include, exclude, text: text.join(' '), hideGenerated }
+  return { include, exclude, text: text.join(' '), hideGenerated, hideBoilerplate }
 }
 
 const isStar = (pattern: string) => pattern.endsWith('.*')
@@ -90,6 +90,7 @@ export function applyFilter(rows: ClosureRow[], filter: RowFilter): ClosureRow[]
   const words = filter.text.toLowerCase().split(' ').filter(Boolean)
   return rows.filter((row) => {
     if (filter.hideGenerated && row.generated) return false
+    if (filter.hideBoilerplate && row.boilerplate) return false
     const lower = row.name.toLowerCase()
     for (const pattern of filter.exclude) {
       if (isStar(pattern) ? matchesStar(row, pattern) : lower.includes(pattern.toLowerCase())) return false

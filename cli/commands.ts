@@ -3,8 +3,8 @@ import type { LocalGraph } from '../src/localGraph'
 import { lookupName } from '../src/localLookup'
 
 export interface Result { out: string; err: string; code: number }
-export interface Options { format: 'text' | 'json' | 'csv' | 'dot'; filter: string; noGenerated: boolean; forbid: string[]; limit: number }
-export const defaultOptions: Options = { format: 'text', filter: '', noGenerated: false, forbid: [], limit: 300 }
+export interface Options { format: 'text' | 'json' | 'csv' | 'dot'; filter: string; noGenerated: boolean; noBoilerplate: boolean; forbid: string[]; limit: number }
+export const defaultOptions: Options = { format: 'text', filter: '', noGenerated: false, noBoilerplate: false, forbid: [], limit: 300 }
 
 const done = (out: string, code = 0): Result => ({ out, err: '', code })
 const json = (value: unknown) => JSON.stringify(value, null, 2) + '\n'
@@ -27,7 +27,7 @@ export function axiomsCmd(graph: LocalGraph, name: string, o: Options): Result {
 export function closureCmd(graph: LocalGraph, name: string, direction: 'dependencies' | 'dependents', o: Options): Result {
   const id = graph.id(name)
   if (id === undefined) return missing(graph, name)
-  const rows = applyFilter(closureRows(graph, id, direction), parseFilter(o.filter, o.noGenerated)).filter((r) => r.id !== id)
+  const rows = applyFilter(closureRows(graph, id, direction), parseFilter(o.filter, o.noGenerated, o.noBoilerplate)).filter((r) => r.id !== id)
   if (o.format === 'json') return done(toJson(graph, name, rows))
   if (o.format === 'csv') return done(toCsv(rows))
   if (o.format === 'dot') return done(toDot(graph, rows, o.limit))
