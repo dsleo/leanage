@@ -3,10 +3,10 @@ import type { Objective, Policy } from './domain'
 const LEAN_NAME = /^[A-Za-z_][A-Za-z0-9_'.]*(?:\.[A-Za-z_][A-Za-z0-9_']*)*$/
 
 export const SUGGESTIONS = [
-  { label: 'Uses the axiom of choice', value: 'axiom of choice', caption: 'Does the proof rely on choice?' },
-  { label: 'Argues by induction', value: 'induction', caption: 'Recursion on ℕ or on structures' },
-  { label: 'Splits into cases', value: 'case analysis', caption: 'Elimination of a disjunction or a type' },
-  { label: 'Argues by contradiction', value: 'proof by contradiction', caption: 'Assumes the opposite, reaches absurdity' },
+  { label: 'Uses the axiom of choice', short: 'Axiom of choice', value: 'axiom of choice', caption: 'Does the proof rely on choice?' },
+  { label: 'Argues by induction', short: 'Induction', value: 'induction', caption: 'Recursion on ℕ or on structures' },
+  { label: 'Splits into cases', short: 'Case analysis', value: 'case analysis', caption: 'Elimination of a disjunction or a type' },
+  { label: 'Argues by contradiction', short: 'Contradiction', value: 'proof by contradiction', caption: 'Assumes the opposite, reaches absurdity' },
 ]
 
 function make(original: string, kind: Objective['kind'], interpretation: string, capability: Objective['capability'], target?: string, policy?: Policy): Objective {

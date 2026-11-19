@@ -62,8 +62,8 @@ export function loadMethodIndex(): Promise<MethodIndex> {
 
 const GRAPH_RULES: Record<MethodCategory, { name: string; rule: string; explanation: string; grade: EvidenceGrade; signature?: RegExp }[]> = {
   induction: [
-    { name: 'Nat.rec', rule: 'nat-recursor', explanation: 'Reference to the natural-number recursor. This is structural recursion evidence, not evidence that the author wrote the induction tactic.', grade: 'observed' },
-    { name: 'Nat.recAux', rule: 'nat-rec-aux', explanation: 'Reference to Nat.recAux, whose successor branch receives the previous motive as an induction hypothesis. This is structural induction evidence, not a source-tactic claim.', grade: 'observed', signature: /succ\s*:\s*\(n\s*:\s*Nat\)\s*→\s*motive n\s*→\s*motive\s*\(n\s*\+\s*1\)/ },
+    { name: 'Nat.rec', rule: 'nat-recursor', explanation: 'Nat.rec is Lean’s built-in rule for induction on natural numbers, and this proof is built from it. That shows the argument runs by induction or recursion, but not that the author typed the induction tactic.', grade: 'observed' },
+    { name: 'Nat.recAux', rule: 'nat-rec-aux', explanation: 'Nat.recAux is induction on natural numbers where the successor case receives the previous case as its hypothesis, and this proof is built from it. That shows the argument runs by induction, but not that the author typed the induction tactic.', grade: 'observed', signature: /succ\s*:\s*\(n\s*:\s*Nat\)\s*→\s*motive n\s*→\s*motive\s*\(n\s*\+\s*1\)/ },
   ],
   cases: [
     { name: 'Or.elim', rule: 'or-elimination', explanation: 'Reference to disjunction elimination, which splits an Or proof into alternatives.', grade: 'observed' },

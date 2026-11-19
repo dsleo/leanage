@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowRight, LoaderCircle } from 'lucide-react'
+import { ArrowDown, Check, LoaderCircle } from 'lucide-react'
 import type { Candidate } from './domain'
 import { MathText } from './MathText'
 import { isLeanNameQuery } from './searchCandidates'
@@ -10,6 +10,7 @@ interface Props {
   query: string
   onConfirm: (candidate: Candidate) => void
   onShowMore: () => void
+  pending?: boolean
 }
 
 export function CandidateCard({ candidate, index, exactMatch, onConfirm }: { candidate: Candidate; index?: number; exactMatch?: boolean; onConfirm: (candidate: Candidate) => void }) {
@@ -22,20 +23,19 @@ export function CandidateCard({ candidate, index, exactMatch, onConfirm }: { can
       {candidate.body && <p className="formal-body">{candidate.body}</p>}
       {candidate.error && <p className="candidate-error">Statement unavailable: {candidate.error}</p>}
     </div>
-    <button className="candidate-select" type="button" disabled={candidate.loading || Boolean(candidate.error)} onClick={() => onConfirm(candidate)}>{candidate.loading ? <LoaderCircle className="spin" size={15} /> : <>Confirm <ArrowRight size={15} /></>}</button>
+    <button className="candidate-select" type="button" aria-label="Confirm this result" title="Confirm this result" disabled={candidate.loading || Boolean(candidate.error)} onClick={() => onConfirm(candidate)}>{candidate.loading ? <LoaderCircle className="spin" size={16} /> : <Check size={17} />}</button>
   </article>
 }
 
-export function CandidateSection({ candidates, visible, visibleCount, query, onConfirm, onShowMore }: Props) {
+export function CandidateSection({ candidates, visible, visibleCount, query, onConfirm, onShowMore, pending }: Props) {
   const exactQuery = isLeanNameQuery(query)
   const exact = exactQuery && candidates.some((candidate) => !candidate.loading && !candidate.error && candidate.name === query.trim())
   const checking = candidates.some((candidate) => candidate.loading)
   const failed = candidates.some((candidate) => candidate.error)
 
   return <section className="candidate-section" aria-labelledby="candidate-title">
-    <div className="section-label"><span>02 / CONFIRM RESULT</span><span>Choose a statement</span></div>
     <h2 id="candidate-title" tabIndex={-1}>Is this your statement?</h2>
-    <p className="section-intro">Confirm the statement you mean before choosing a question.</p>
+    {pending && <div className="inline-state" role="status"><LoaderCircle size={16} className="spin" /> Searching TheoremGraph for more matches…</div>}
     {exactQuery && !exact && <p className="search-advice" role="status">
       {checking ? <>Checking the matches for <code>{query.trim()}</code>…</> : failed ? <>Some matches could not be checked. <code>{query.trim()}</code> has not been confirmed; try a mathematical description.</> : <><code>{query.trim()}</code> did not appear among these {candidates.length} matches. Try describing the mathematics.</>}
     </p>}

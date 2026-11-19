@@ -1,4 +1,4 @@
-import { ArrowRight, Check, LoaderCircle } from 'lucide-react'
+import { ArrowRight, LoaderCircle } from 'lucide-react'
 import type { Declaration, Objective, TraversalState } from './domain'
 import { collapseSteps } from './closureData'
 import { MathText } from './MathText'
@@ -29,8 +29,6 @@ function EvidenceItem({ evidence: raw, objective, theorem, names }: { evidence: 
   const evidence = { ...raw, path: collapseSteps(raw.path) }
   return <div className={`witness evidence-${evidence.grade}`}>
     <p className="story-headline">{storyHeadline(evidence, objective)}</p>
-    <div className="witness-title">{evidence.grade === 'observed' ? <Check size={16} aria-hidden="true" /> : <span className="lead-mark" aria-hidden="true" />}<strong>{evidence.matchedName}</strong><span>{evidence.path.length - 1} {evidence.path.length === 2 ? 'edge' : 'edges'} · {evidence.location === 'root' ? 'selected proof' : evidence.location === 'definition' ? 'reached definition' : 'proof dependency'}</span></div>
-    <p className="evidence-description">{evidence.explanation}</p>
     <ol className="path" aria-label={`Path from ${theorem.name} to ${evidence.matchedName}`}>
       {evidence.path.map((step, index) => {
         const declaration = names?.get(step.id)
@@ -49,6 +47,7 @@ function EvidenceItem({ evidence: raw, objective, theorem, names }: { evidence: 
         </li>
       })}
     </ol>
+    <p className="fine-print evidence-description">{evidence.explanation}</p>
   </div>
 }
 
@@ -62,18 +61,13 @@ export function QuestionCard({ objective, state, theorem, index, indexStatus, on
   const definitionScopeNeeded = exhausted && state.policy === 'proof' && isDefinition(theorem.kind) && state.visited.size === 1 && state.edges.length === 0 && state.rootDefinitionEdges > 0
   const exactAbsence = exhausted && state?.source === 'local' && objective.kind === 'named'
   const indexMissing = objective.kind !== 'named' && indexStatus === 'error'
-  const badge = unsupported ? 'Undetermined' : primary?.grade === 'observed' ? primary.source === 'MathlibTactics' ? 'Source tactic' : 'Graph witness' : primary ? primary.joinStatus === 'different-version' ? 'Cross-version lead' : 'Possible method signal' : related ? 'Related evidence' : definitionScopeNeeded ? 'Definition scope needed' : exactAbsence ? 'Not in closure' : exhausted && indexMissing ? 'Partial evidence' : exhausted ? 'No marker observed' : state?.status === 'limited' ? 'Limit reached' : state?.status === 'error' ? 'API error' : state?.status === 'paused' ? 'Paused' : 'Searching'
+  const badge = unsupported ? 'Undetermined' : primary?.grade === 'observed' ? primary.source === 'MathlibTactics' ? 'Written in the proof' : 'Found in dependencies' : primary ? primary.joinStatus === 'different-version' ? 'Possible, older Mathlib' : 'Possible, unconfirmed' : related ? 'Related only' : definitionScopeNeeded ? 'Definition scope needed' : exactAbsence ? 'Never reached' : exhausted && indexMissing ? 'Partial evidence' : exhausted ? 'Not found' : state?.status === 'limited' ? 'Limit reached' : state?.status === 'error' ? 'API error' : state?.status === 'paused' ? 'Paused' : 'Searching'
   const kind = unsupported ? 'muted' : primary?.grade === 'observed' ? 'positive' : primary || related ? 'pending' : exhausted ? 'neutral' : state?.status === 'error' ? 'negative' : 'pending'
   return (
     <article className="answer-card">
       <div className="answer-head">
-        <div>
-          <p className="eyebrow">Your question</p>
-          <h3>{objective.original}</h3>
-        </div>
         <span className={`status-pill ${kind}`}>{!unsupported && !primary && !related && state?.status === 'running' && <LoaderCircle size={13} className="spin" />}{badge}</span>
       </div>
-      <p className="interpretation">{objective.interpretation}</p>
       {state?.policy === 'body' && isDefinition(theorem.kind) && <p className="answer-note">This scan includes definition-body references. A method found through them may belong to a referenced definition, so inspect its path.</p>}
       {unsupported ? (
         <p className="answer-note">This request has no reviewed detector. Enter a full Lean declaration name or choose one of the method questions.</p>

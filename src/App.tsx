@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowRight } from 'lucide-react'
 import { ApiError, TheoremGraphClient } from './api'
 import type { Candidate, Declaration, Objective, Policy, TraversalState } from './domain'
 import { Explorer } from './explorer'
@@ -10,10 +9,11 @@ import { loadMethodIndex, type MethodIndex } from './methods'
 import { interpretObjective, namedObjective, objectiveKey, resolvableText } from './objectives'
 import { CandidateSection } from './CandidateSection'
 import { ResultsSection } from './ResultsSection'
-import { ConfirmedSection, QuestionSection, SearchSection, type Resolver, type SearchStatus } from './WorkflowSections'
+import { ContextBar, QuestionSection, SearchSection, type Resolver, type SearchStatus } from './WorkflowSections'
 import { displayedCandidates, isLeanNameQuery } from './searchCandidates'
 import { SiteFooter, SiteHeader } from './SiteChrome'
 import './design.css'
+import './flow.css'
 import './styles.css'
 
 const client = new TheoremGraphClient()
@@ -51,7 +51,6 @@ function debug(event: string, details: Record<string, unknown>) {
 function App() {
   const [query, setQuery] = useState(initial.query)
   const [searchedQuery, setSearchedQuery] = useState(initial.query)
-  const [searchOpen, setSearchOpen] = useState(true)
   const [draft, setDraft] = useState('')
   const [objectives, setObjectives] = useState<Objective[]>(initial.objectives)
   const [searchStatus, setSearchStatus] = useState<SearchStatus>('idle')
@@ -69,12 +68,12 @@ function App() {
   const [indexStatus, setIndexStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const [indexError, setIndexError] = useState('')
   const [resolver, setResolver] = useState<Resolver | null>(null)
-  const [linkCopied, setLinkCopied] = useState(false)
   const [storeStatus, setStoreStatus] = useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
   const [storeNote, setStoreNote] = useState('')
   const localGraph = useRef<LocalGraph | null>(null)
   const storePromise = useRef<Promise<LocalGraph | null> | null>(null)
   const [storeMiss, setStoreMiss] = useState<LocalMatch[] | null>(null)
+  const [apiPending, setApiPending] = useState(false)
   const searchController = useRef<AbortController | null>(null)
   const resolveController = useRef<AbortController | null>(null)
   const searchInput = useRef<HTMLInputElement>(null)
@@ -116,12 +115,47 @@ function App() {
   const canResume = activeStates.some((state) => state.status === 'paused' || state.status === 'error')
   const visibleResults = displayedCandidates(candidates, visibleCandidates, searchedQuery)
 
-  function openSearch() {
-    setSearchOpen(true)
-    window.setTimeout(() => { document.getElementById('query-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); searchInput.current?.focus({ preventScroll: true }) }, 30)
-  }
-
   useEffect(() => { if (!initial.linkedId) searchInput.current?.focus({ preventScroll: true }) }, [])
+
+  const stage = !confirmed ? 'search' : !analysisStarted ? 'question' : 'results'
+  const shownStage = useRef<string>('search')
+  const fromPop = useRef(false)
+  const linkedStart = useRef(Boolean(initial.linkedId || initial.linkedName))
+
+  // Each stage is a history entry, so the browser's Back and Forward move between them.
+  useEffect(() => {
+    if (shownStage.current === stage) return
+    shownStage.current = stage
+    if (fromPop.current) { fromPop.current = false; return }
+    const url = new URL(window.location.href)
+    url.searchParams.delete('id'); url.searchParams.delete('name'); url.searchParams.delete('commit')
+    if (confirmed) setDeclarationParams(url, confirmed, localGraph.current?.meta.mathlib_commit)
+    if (linkedStart.current) { linkedStart.current = false; window.history.replaceState({ stage }, '', url); return }
+    window.history.pushState({ stage }, '', url)
+  }, [stage, confirmed?.id])
+
+  useEffect(() => {
+    function onPop(event: PopStateEvent) {
+      const target = (event.state as { stage?: string } | null)?.stage ?? 'search'
+      if (target === shownStage.current) return
+      if (target !== 'search' && !confirmed) { window.location.reload(); return } // forward into a cleared result: reload it from the permalink
+      fromPop.current = true
+      if (target === 'results') { if (confirmed && objectives.length) void begin(); else fromPop.current = false; return }
+      explorer.current.cancel()
+      setStates(new Map())
+      setStoreMiss(null)
+      setAnalysisStarted(false)
+      if (target === 'search') { dismissResolver(); setConfirmed(null); setIncludeDefinitions(false) }
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  })
+
+  // The store's exact match and the same declaration from TheoremGraph are one result: keep the one with the statement.
+  useEffect(() => {
+    const next = candidates.filter((candidate) => UUID.test(candidate.id) || !candidates.some((other) => other !== candidate && UUID.test(other.id) && !other.loading && !other.error && other.name === candidate.name))
+    if (next.length !== candidates.length) setCandidates(next)
+  }, [candidates])
 
   useEffect(() => () => { searchController.current?.abort(); resolveController.current?.abort(); explorer.current.cancel() }, [])
 
@@ -131,7 +165,7 @@ function App() {
     url.searchParams.delete('name')
     url.searchParams.delete('commit')
     if (confirmed) setDeclarationParams(url, confirmed, localGraph.current?.meta.mathlib_commit)
-    window.history.replaceState(null, '', url)
+    window.history.replaceState(window.history.state, '', url)
   }, [confirmed?.id, searchStatus])
 
   useEffect(() => {
@@ -323,25 +357,29 @@ function App() {
     const serial = ++searchSerial.current
     const started = performance.now()
     const local = localCandidates(searchQuery)
+    // A Lean name is answered from the local store at once; TheoremGraph results join the list when they arrive.
     const offerLocal = async (): Promise<boolean> => {
       const items = await local
       if (!items.length || serial !== searchSerial.current) return false
-      setCandidates(items)
-      setSearchStatus('ready')
+      setCandidates((current) => [...items.filter((item) => !current.some((candidate) => candidate.id === item.id)), ...current])
+      setSearchStatus((status) => status === 'searching' ? 'ready' : status)
       return true
     }
+    void offerLocal()
+    setApiPending(true)
     try {
       const found = await client.search(searchQuery, controller.signal)
       if (serial !== searchSerial.current) return
+      setApiPending(false)
       debug('semantic search', { count: found.length, elapsedMs: Math.round(performance.now() - started), cache: client.cacheStats() })
       if (!found.length) { if (!await offerLocal()) setSearchStatus('empty'); return }
-      setCandidates(found)
+      setCandidates((current) => [...current.filter((candidate) => !UUID.test(candidate.id)), ...found])
       setSearchStatus('ready')
-      void local.then((items) => { if (items.length && serial === searchSerial.current) setCandidates((current) => [...items.filter((item) => !current.some((candidate) => candidate.name === item.name && candidate.sourceLabel === item.sourceLabel)), ...current]) })
       window.setTimeout(() => document.getElementById('candidate-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30)
       hydrationTail.current = Promise.resolve().then(() => hydrate(isLeanNameQuery(searchQuery) ? found : found.slice(0, 5), controller, serial, isLeanNameQuery(searchQuery) ? searchQuery : undefined))
     } catch (error) {
       if (controller.signal.aborted || serial !== searchSerial.current) return
+      setApiPending(false)
       if (await offerLocal()) return
       setSearchStatus('error')
       setSearchError(formatError(error))
@@ -349,6 +387,7 @@ function App() {
   }
 
   function cancelSearch() {
+    setApiPending(false)
     searchController.current?.abort()
     searchSerial.current++
     setSearchStatus('idle')
@@ -365,30 +404,6 @@ function App() {
     setStates(new Map())
     explorer.current.cancel()
     window.setTimeout(() => document.getElementById('confirmed-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30)
-  }
-
-  async function copyDeclarationLink() {
-    if (!confirmed) return
-    const url = new URL(window.location.href)
-    url.search = ''
-    setDeclarationParams(url, confirmed, localGraph.current?.meta.mathlib_commit)
-    try {
-      await navigator.clipboard.writeText(url.toString())
-      setLinkCopied(true)
-      window.setTimeout(() => setLinkCopied(false), 1800)
-    } catch {
-      setLinkCopied(false)
-    }
-  }
-
-  function changeResult() {
-    dismissResolver()
-    setStoreMiss(null)
-    explorer.current.cancel()
-    setConfirmed(null)
-    setIncludeDefinitions(false)
-    setAnalysisStarted(false)
-    setStates(new Map())
   }
 
   async function begin() {
@@ -440,34 +455,36 @@ function App() {
     setPauseRequested(false)
   }
 
-  return <div className={`app-shell ${searchOpen ? '' : 'intro-only'}`}>
+  const localResult = states.values().next().value?.source === 'local'
+
+  return <div className={`app-shell stage-${stage}`}>
     <SiteHeader />
 
     <main>
-      <section className="intro" aria-labelledby="page-title">
-        <h1 id="page-title">Leanage <em>explorer.</em></h1>
-        <p>Describe a theorem and see what its proof relies on.</p>
-        {!searchOpen && <button type="button" className="intro-cta" onClick={openSearch}>Explore a theorem <span className="intro-cta-arrow"><ArrowRight size={16} aria-hidden="true" /></span></button>}
-      </section>
+      {confirmed && <ContextBar declaration={confirmed} />}
 
-      {searchOpen && <section className="workspace" aria-label="Theorem analysis">
+      {stage === 'search' && <section className="intro" aria-labelledby="page-title">
+        <h1 id="page-title">Leanage <em>explorer.</em></h1>
+        <p>Describe your result of interest.</p>
+      </section>}
+
+      <section className="workspace" aria-label="Theorem analysis">
         <div className="workspace-grid">
           <div className="main-column">
-            <SearchSection query={query} onQueryChange={setQuery} onSearch={() => void search()} onCancel={cancelSearch} inputRef={searchInput} status={searchStatus} seconds={searchSeconds} notice={searchNotice} error={searchError} />
+            {stage === 'search' && <>
+              <SearchSection query={query} onQueryChange={setQuery} onSearch={() => void search()} onCancel={cancelSearch} inputRef={searchInput} status={searchStatus} seconds={searchSeconds} notice={searchNotice} error={searchError} />
+              {searchStatus === 'ready' && <CandidateSection candidates={candidates} visible={visibleResults} visibleCount={visibleCandidates} query={searchedQuery} onConfirm={confirm} onShowMore={showMoreCandidates} pending={apiPending} />}
+            </>}
 
-            {searchStatus === 'ready' && !confirmed && <CandidateSection candidates={candidates} visible={visibleResults} visibleCount={visibleCandidates} query={searchedQuery} onConfirm={confirm} onShowMore={showMoreCandidates} />}
+            {stage === 'question' && <QuestionSection objectives={objectives} draft={draft} onDraftChange={setDraft} onAdd={addAndRefresh} onRemove={removeObjective} onBegin={() => void begin()} resolver={resolver} onPick={pickResolved} onDismissResolver={dismissResolver} />}
 
-            {confirmed && <ConfirmedSection declaration={confirmed} onChange={changeResult} onCopyLink={() => void copyDeclarationLink()} linkCopied={linkCopied} />}
-
-            {confirmed && <QuestionSection objectives={objectives} draft={draft} onDraftChange={setDraft} onAdd={addAndRefresh} onRemove={removeObjective} onBegin={() => void begin()} analysisStarted={analysisStarted} resolver={resolver} onPick={pickResolved} onDismissResolver={dismissResolver} />}
-
-            {analysisStarted && confirmed && <ResultsSection
-              theorem={states.values().next().value?.source === 'local' ? { ...confirmed, id: confirmed.name } : confirmed}
-              storeNote={states.values().next().value?.source === 'local' ? storeNote : ''}
+            {stage === 'results' && confirmed && <ResultsSection
+              theorem={localResult ? { ...confirmed, id: confirmed.name } : confirmed}
+              storeNote={localResult ? storeNote : ''}
               storeLoading={storeStatus === 'loading'}
               storeMiss={storeMiss}
               onUseLocalName={analyseLocalName}
-              localGraph={states.values().next().value?.source === 'local' ? localGraph.current : null}
+              localGraph={localResult ? localGraph.current : null}
               objectives={scopedObjectives}
               states={states}
               methodIndex={methodIndex}
@@ -483,9 +500,8 @@ function App() {
               onContinue={(policy) => explorer.current.continueAfterWitness(policy)}
             />}
           </div>
-
         </div>
-      </section>}
+      </section>
     </main>
     <SiteFooter />
   </div>

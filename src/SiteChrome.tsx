@@ -8,10 +8,9 @@ export function SiteHeader() {
       <circle className="lineage-leaf-selected" cx="25" cy="7" r="2.7" />
       <circle className="lineage-leaf" cx="25" cy="27" r="2.4" />
     </svg><span>Leanage</span></a>
-    <nav aria-label="Main navigation"><a href="/how-it-works" aria-current={window.location.pathname === '/how-it-works' ? 'page' : undefined}>How it works</a></nav>
   </header>
 }
 
 export function SiteFooter() {
-  return <footer><span>Leanage</span></footer>
+  return <footer><span>Leanage</span><nav aria-label="Footer navigation"><a href="/how-it-works" aria-current={window.location.pathname === '/how-it-works' ? 'page' : undefined}>How it works</a></nav></footer>
 }

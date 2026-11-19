@@ -22,7 +22,7 @@ describe('finding cards', () => {
     state.error = 'The API returned HTTP 503.'
     const onResume = vi.fn()
     render(<QuestionCard objective={interpretObjective('induction')!} state={state} theorem={root} index={index} indexStatus="ready" onIncludeDefinitions={() => {}} onResume={onResume} />)
-    expect(screen.getByText('Cross-version lead')).toBeTruthy()
+    expect(screen.getByText('Possible, older Mathlib')).toBeTruthy()
     expect(screen.getByRole('alert').textContent).toContain('HTTP 503')
     fireEvent.click(screen.getByRole('button', { name: 'Resume exploration' }))
     expect(onResume).toHaveBeenCalledOnce()
@@ -40,7 +40,7 @@ describe('finding cards', () => {
     state.status = 'complete'
     state.completionReason = 'witnesses'
     render(<QuestionCard objective={interpretObjective('induction')!} state={state} theorem={root} index={index} indexStatus="ready" onIncludeDefinitions={() => {}} onResume={() => {}} />)
-    expect(screen.getByText('Graph witness')).toBeTruthy()
+    expect(screen.getByText('Found in dependencies')).toBeTruthy()
     expect(screen.queryByText(/Other evidence/)).toBeNull()
   })
 
