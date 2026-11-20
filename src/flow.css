@@ -6,7 +6,7 @@
 .workspace-grid { padding-bottom: 12px; }
 
 /* Context banner, like a search results page: confirmed result on the left, what we look for on the right. */
-.context-bar { background: rgba(250, 247, 240, .86); border-bottom: 1px solid var(--line); }
+.context-bar { background: var(--paper-glass); border-bottom: 1px solid var(--line); }
 .context-inner { max-width: 1000px; margin: auto; padding: 14px 36px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 28px; align-items: start; }
 .stage-results .context-inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
 .context-label { display: block; font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
@@ -15,11 +15,11 @@
 .context-result strong.context-name { font-family: 'DM Mono', monospace; font-size: 16px; color: var(--green); }
 .context-result code { display: block; margin-top: 4px; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .context-questions ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
-.context-questions li { border: 1px solid var(--line); background: #fbfaf5; padding: 4px 10px; font-size: 13px; }
+.context-questions li { border: 1px solid var(--line); background: var(--c-fbfaf5); padding: 4px 10px; font-size: 13px; }
 .context-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: flex-end; padding-top: 2px; }
 .context-bar .declaration-kind-note { max-width: 1000px; margin: 0 auto; padding: 0 36px 12px; }
 .icon-action { border: 1px solid var(--line); background: none; color: var(--green); width: 36px; height: 36px; display: grid; place-items: center; }
-.icon-action:hover { background: #eaf0e7; }
+.icon-action:hover { background: var(--c-eaf0e7); }
 .text-action { min-height: 36px; }
 
 /* Question stage */
@@ -27,10 +27,10 @@
 .question-stage h2, .answer-stage h2:not(.sr-only) { font: 500 clamp(28px, 3.2vw, 40px)/1.1 'Newsreader', serif; margin: 0 0 18px; }
 .question-picked { margin-top: 26px; display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .question-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-.question-chips li { display: inline-flex; align-items: center; gap: 4px; border: 1px solid #a6b8a7; background: #f4f7f1; padding: 0 4px 0 12px; min-height: 40px; font-size: 14px; }
-.question-chips small { color: #a14e37; font-size: 11px; }
-.question-chips button { border: 0; background: none; color: #89948a; min-width: 36px; min-height: 36px; display: grid; place-items: center; }
-.question-chips button:hover { color: #a14e37; }
+.question-chips li { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--c-a6b8a7); background: var(--c-f4f7f1); padding: 0 4px 0 12px; min-height: 40px; font-size: 14px; }
+.question-chips small { color: var(--c-a14e37); font-size: 11px; }
+.question-chips button { border: 0; background: none; color: var(--c-89948a); min-width: 36px; min-height: 36px; display: grid; place-items: center; }
+.question-chips button:hover { color: var(--c-a14e37); }
 .primary-button.icon-only { width: 52px; min-width: 52px; padding: 0; }
 .stage-question .resolver { margin-top: 20px; }
 
@@ -57,12 +57,12 @@ footer nav a[aria-current='page'] { text-decoration: underline; text-underline-o
 
 /* How it works page */
 .guide-sections code, .guide-sections dd, .guide-sections li { overflow-wrap: anywhere; }
-.guide-list { margin: 0 0 12px; padding-left: 20px; max-width: 650px; font-size: 14px; line-height: 1.7; color: #56645a; }
+.guide-list { margin: 0 0 12px; padding-left: 20px; max-width: 650px; font-size: 14px; line-height: 1.7; color: var(--c-56645a); }
 .guide-list li { margin-bottom: 8px; }
 .guide-terms { margin: 0 0 12px; max-width: 650px; }
 .guide-terms dt { font-weight: 700; font-size: 14px; margin-top: 14px; }
-.guide-terms dd { margin: 3px 0 0; font-size: 14px; line-height: 1.65; color: #56645a; }
-.guide-code { max-width: 100%; overflow-x: auto; background: #f4e8d1; padding: 12px 14px; font: 12px/1.6 'DM Mono', monospace; margin: 0 0 12px; }
+.guide-terms dd { margin: 3px 0 0; font-size: 14px; line-height: 1.65; color: var(--c-56645a); }
+.guide-code { max-width: 100%; overflow-x: auto; background: var(--c-f4e8d1); padding: 12px 14px; font: 12px/1.6 'DM Mono', monospace; margin: 0 0 12px; }
 .guide-chain { max-width: 100%; }
 .guide-sections section:target h2 { text-decoration: underline; text-underline-offset: 6px; }
 footer .footer-credits { text-transform: none; letter-spacing: 0; font-size: 11px; }

@@ -12,6 +12,7 @@ import { ResultsSection } from './ResultsSection'
 import { ContextBar, QuestionSection, SearchSection, type Resolver, type SearchStatus } from './WorkflowSections'
 import { displayedCandidates, isLeanNameQuery } from './searchCandidates'
 import { SiteFooter, SiteHeader } from './SiteChrome'
+import './palette.css'
 import './design.css'
 import './flow.css'
 import './styles.css'
@@ -464,7 +465,7 @@ function App() {
       {confirmed && <ContextBar declaration={confirmed} />}
 
       {stage === 'search' && <section className="intro" aria-labelledby="page-title">
-        <h1 id="page-title">Leanage <em>explorer.</em></h1>
+        <h1 id="page-title">Leanage <em>explorer</em></h1>
       </section>}
 
       <section className="workspace" aria-label="Theorem analysis">
