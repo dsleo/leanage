@@ -53,3 +53,6 @@
 .export-list button { display: block; width: 100%; min-height: 40px; padding: 0 12px; border: 0; background: none; color: var(--ink); text-align: left; font-size: 13px; }
 .export-list button:hover { background: var(--accent-wash); }
 .export-list .closure-help { margin: 6px 12px 8px; }
+.graph-toolbar-actions .export-menu { margin-left: 0; }
+.graph-toolbar-actions .export-menu > summary { border: 1px solid transparent; color: #577ae4; font-size: 11px; }
+.graph-toolbar-actions .export-menu > summary:hover, .graph-toolbar-actions .export-menu[open] > summary { border-color: #2f4a9d; background: #202328; }

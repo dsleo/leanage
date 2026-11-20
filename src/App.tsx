@@ -89,7 +89,6 @@ function App() {
       setStoreStatus('loading')
       storePromise.current = loadLocalGraph(STORE_URL).then((graph) => {
         localGraph.current = graph
-        setStoreNote(`Local dependency store: Mathlib ${graph.meta.mathlib_commit?.slice(0, 7) ?? 'unknown commit'}, ${graph.meta.nodes.toLocaleString()} declarations. Complete closure; references are not typed.`)
         setStoreStatus('ready')
         return graph
       }).catch((error) => {
@@ -480,10 +479,10 @@ function App() {
 
             {stage === 'results' && confirmed && <ResultsSection
               theorem={localResult ? { ...confirmed, id: confirmed.name } : confirmed}
-              storeNote={localResult ? storeNote : ''}
               storeLoading={storeStatus === 'loading'}
               storeMiss={storeMiss}
               onUseLocalName={analyseLocalName}
+              storeNote={localResult ? storeNote : ''}
               localGraph={localResult ? localGraph.current : null}
               objectives={scopedObjectives}
               states={states}

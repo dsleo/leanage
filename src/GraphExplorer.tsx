@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowDownLeft, Focus, Maximize2, Minus, Play, Plus, Search, X } from 'lucide-react'
+import { ArrowDownLeft, Eye, Focus, Maximize2, Minus, Network, Play, Plus, Search, X } from 'lucide-react'
 import type { Declaration, Edge, PathStep, Policy, TraversalState } from './domain'
 import { pathTo } from './explorer'
 import { POLICY_LABEL } from './domain'
@@ -74,11 +74,10 @@ function shortName(value: string) {
   return value.length > 32 ? `…${value.slice(-31)}` : value
 }
 
-function GraphView({ state, root, expanded, onExpand, focusRequest, evidencePaths }: { state: TraversalState; root: Declaration; expanded: boolean; onExpand: () => void; focusRequest?: { id: string; serial: number }; evidencePaths: PathStep[][] }) {
+function GraphView({ state, root, expanded, onExpand, focusRequest, evidencePaths, toolbarExtra }: { toolbarExtra?: ReactNode; state: TraversalState; root: Declaration; expanded: boolean; onExpand: () => void; focusRequest?: { id: string; serial: number }; evidencePaths: PathStep[][] }) {
   const [selectedId, setSelectedId] = useState(root.id)
   const [query, setQuery] = useState('')
   const [zoom, setZoom] = useState(1)
-  const [showList, setShowList] = useState(false)
   const [showFullGraph, setShowFullGraph] = useState(true)
   const [narrow, setNarrow] = useState(() => window.matchMedia('(max-width: 600px)').matches)
   const viewport = useRef<HTMLDivElement>(null)
@@ -163,14 +162,14 @@ function GraphView({ state, root, expanded, onExpand, focusRequest, evidencePath
 
   return <div className={`graph-explorer ${expanded ? 'expanded' : ''} ${fullMode ? 'full' : 'witness-mode'} ${verticalWitness ? 'witness-long' : ''}`}>
     <div className="graph-toolbar">
-      <div className="graph-toolbar-title"><strong>{fullMode ? `Full observed graph · ${fullGraph.positions.size} node${fullGraph.positions.size === 1 ? '' : 's'}` : 'Witness path'}</strong></div>
+      <div className="graph-toolbar-title">{!fullMode && <strong>Witness path</strong>}</div>
       <div className="graph-toolbar-actions">
-        {firstWitness && <button type="button" onClick={() => { setShowFullGraph((value) => !value); setShowList(false); setZoom(1) }}>{showFullGraph ? 'Show witness path' : 'Show full graph'}</button>}
-        {fullMode && <button type="button" onClick={() => setShowList((value) => !value)} aria-pressed={showList}>{showList ? 'Show graph' : 'Show list'}</button>}
+        {firstWitness && <button type="button" aria-label={showFullGraph ? 'Show witness path' : 'Show full graph'} title={showFullGraph ? 'Show witness path' : 'Show full graph'} onClick={() => { setShowFullGraph((value) => !value); setZoom(1) }}>{showFullGraph ? <Eye size={16} /> : <Network size={16} />}</button>}
         {fullMode && <button type="button" aria-label="Zoom out" onClick={() => setZoom((value) => Math.max(.55, Math.round((value - .15) * 100) / 100))}><Minus size={16} /></button>}
         {fullMode && <span className="graph-zoom">{Math.round(zoom * 100)} %</span>}
         {fullMode && <button type="button" aria-label="Zoom in" onClick={() => setZoom((value) => Math.min(1.7, Math.round((value + .15) * 100) / 100))}><Plus size={16} /></button>}
         {fullMode && <button type="button" aria-label="Center on the theorem" onClick={() => focus(root.id)}><Focus size={16} /></button>}
+        {toolbarExtra}
         <button type="button" aria-label={expanded ? 'Exit full screen' : 'View graph full screen'} onClick={onExpand}>{expanded ? <X size={16} /> : <Maximize2 size={16} />}</button>
       </div>
     </div>
@@ -180,7 +179,7 @@ function GraphView({ state, root, expanded, onExpand, focusRequest, evidencePath
     </div>}
     {query && <div className="graph-matches" aria-live="polite">{matches.length ? <>{matches.slice(0, 12).map((node) => <button key={node.id} type="button" onClick={() => focus(node.id)}>{node.declaration.name}</button>)}{matches.length > 12 && <span>+ {matches.length - 12} more</span>}</> : <span>No observed declaration matches.</span>}</div>}
     <div className="graph-layout">
-      {showList ? <div className="graph-list" aria-label="Observed graph declarations">{[...graph.positions.values()].sort((a, b) => Number(evidenceNodes.has(b.id)) - Number(evidenceNodes.has(a.id)) || a.depth - b.depth || a.declaration.name.localeCompare(b.declaration.name)).map((node) => <button type="button" key={node.id} className={node.id === selected?.id ? 'selected' : ''} onClick={() => focus(node.id)}><span>{String(node.depth).padStart(2, '0')}</span><strong>{node.declaration.name}</strong><small>{evidenceNodes.has(node.id) ? 'witness path' : state.visited.has(node.id) ? 'neighborhood loaded' : 'pending'}</small></button>)}</div> : <div className="graph-viewport" ref={viewport} aria-label="Observed dependency graph, scroll to navigate"><svg width={graph.width * zoom} height={graph.height * zoom} viewBox={`0 0 ${graph.width} ${graph.height}`} onPointerDown={panStart} onPointerMove={panMove} onPointerUp={() => { drag.current = null }} onPointerCancel={() => { drag.current = null }}>
+      {<div className="graph-viewport" ref={viewport} aria-label="Observed dependency graph, scroll to navigate"><svg width={graph.width * zoom} height={graph.height * zoom} viewBox={`0 0 ${graph.width} ${graph.height}`} onPointerDown={panStart} onPointerMove={panMove} onPointerUp={() => { drag.current = null }} onPointerCancel={() => { drag.current = null }}>
         <defs><marker id="witness-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#7b93ff" /></marker></defs>
         <g className="graph-edges">{state.edges.map((edge: Edge, index) => {
           const from = graph.positions.get(edge.from)
@@ -234,10 +233,9 @@ export function GraphExplorer({ states, root, onContinue, canContinue, focusRequ
     wasExpanded.current = expanded
   }, [expanded, Boolean(state)])
   if (!state) return null
-  return <section className="graph-section" aria-labelledby="graph-title">
-    <div className="graph-section-head"><h2 id="graph-title" tabIndex={-1}>The explored graph</h2>{headActions}</div>
-    {available.length > 1 && <div className="graph-policy" role="group" aria-label="Dependency type">{available.map((option) => <button type="button" key={option} className={effectivePolicy === option ? 'active' : ''} aria-pressed={effectivePolicy === option} onClick={() => setPolicy(option)}>{POLICY_LABEL[option]}</button>)}</div>}
-    <dialog ref={dialogRef} className={`graph-dialog ${expanded ? 'expanded' : ''}`} aria-label="Dependency graph explorer" onCancel={(event) => { event.preventDefault(); setExpanded(false) }}><GraphView key={`${root.id}-${effectivePolicy}`} state={state} root={root} expanded={expanded} onExpand={() => setExpanded((value) => !value)} focusRequest={focusRequest?.policy === effectivePolicy ? focusRequest : undefined} evidencePaths={evidencePaths.filter((item) => item.policy === effectivePolicy).map((item) => item.path)} /></dialog>
+  return <section className="graph-section" aria-label="Dependency graph">
+        {available.length > 1 && <div className="graph-policy" role="group" aria-label="Dependency type">{available.map((option) => <button type="button" key={option} className={effectivePolicy === option ? 'active' : ''} aria-pressed={effectivePolicy === option} onClick={() => setPolicy(option)}>{POLICY_LABEL[option]}</button>)}</div>}
+    <dialog ref={dialogRef} className={`graph-dialog ${expanded ? 'expanded' : ''}`} aria-label="Dependency graph explorer" onCancel={(event) => { event.preventDefault(); setExpanded(false) }}><GraphView toolbarExtra={headActions} key={`${root.id}-${effectivePolicy}`} state={state} root={root} expanded={expanded} onExpand={() => setExpanded((value) => !value)} focusRequest={focusRequest?.policy === effectivePolicy ? focusRequest : undefined} evidencePaths={evidencePaths.filter((item) => item.policy === effectivePolicy).map((item) => item.path)} /></dialog>
     {state.completionReason === 'witnesses' && state.frontier.length > 0 && <details className="graph-more"><summary>Explore beyond the first match</summary><div className="graph-continue"><p>More dependencies may reveal other paths.</p><button type="button" disabled={!canContinue} onClick={() => onContinue(effectivePolicy)}><Play size={14} /> Continue exploring</button></div></details>}
   </section>
 }

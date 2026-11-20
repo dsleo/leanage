@@ -42,6 +42,7 @@ export function ResultsSection({ theorem, objectives, states, methodIndex, index
       </div>
     </div>
     {storeLoading && <div className="inline-state" role="status"><LoaderCircle size={16} className="spin" /> Loading the local dependency store (about 24 MB, cached after the first visit)…</div>}
+    {storeNote && <div className="inline-state" role="status">{storeNote}</div>}
     {storeMiss && <div className="inline-state" role="status"><span>
       <code>{theorem.name}</code> is not in the local store, so this answer uses live TheoremGraph data, which may be partial.
       {storeMiss.length > 0 && onUseLocalName && <> Similar names in the store: {storeMiss.map((match) => <button key={match.id} type="button" className="text-action" onClick={() => onUseLocalName(match.name)}>{match.name}</button>)}</>}
@@ -50,11 +51,10 @@ export function ResultsSection({ theorem, objectives, states, methodIndex, index
     {indexStatus === 'error' && <div className="inline-state error" role="alert">Recorded tactic evidence is unavailable: {indexError} Graph-reference detectors can still run. <button type="button" onClick={onRetryIndex}>Retry index</button></div>}
     <div className="answers">{objectives.map((objective) => <QuestionCard key={objective.id} objective={objective} state={objective.policy ? states.get(objective.policy) : undefined} theorem={theorem} index={methodIndex} indexStatus={indexStatus} onIncludeDefinitions={onIncludeDefinitions} onResume={onResume} />)}</div>
     {(hasGraph || localGraph) && <details className="full-detail" onToggle={(event) => setShowDetails(event.currentTarget.open)}>
-      <summary>Explore the full dependency graph and closure</summary>
+      <summary>Explore the dependency graph</summary>
       {showDetails && <>
         {hasGraph && <GraphExplorer headActions={localGraph ? <ExportMenu graph={localGraph} rootName={theorem.name} /> : undefined} states={states} root={theorem} onContinue={onContinue} canContinue={!isRunning} evidencePaths={objectives.flatMap((objective) => objective.policy ? findEvidence(states.get(objective.policy), objective, methodIndex).slice(0, 7).map((evidence) => ({ policy: objective.policy!, path: evidence.path })) : [])} />}
         {localGraph && <ClosurePanel graph={localGraph} rootName={theorem.name} />}
-        <p className="fine-print">A path confirms a reference. It does not reconstruct the Lean proof script.{storeNote ? ` ${storeNote}` : ''}</p>
       </>}
     </details>}
   </section>

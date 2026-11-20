@@ -68,6 +68,7 @@ export function QuestionCard({ objective, state, theorem, index, indexStatus, on
   return (
     <article className="answer-card">
       <div className="answer-head">
+        <h3>{objective.original.charAt(0).toUpperCase() + objective.original.slice(1)}</h3>
         <span className={`status-pill ${kind}`}>{!unsupported && !primary && !related && state?.status === 'running' && <LoaderCircle size={13} className="spin" />}{badge}</span>
       </div>
       {state?.policy === 'body' && isDefinition(theorem.kind) && <p className="answer-note">This scan includes definition-body references. A method found through them may belong to a referenced definition, so inspect its path.</p>}

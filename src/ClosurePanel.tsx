@@ -32,7 +32,6 @@ export function ClosurePanel({ graph, rootName }: { graph: LocalGraph; rootName:
   }
 
   return <section className="closure-panel" aria-label={`Closure of ${rootName}`}>
-    <p className="eyebrow">Dependency closure</p>
     <p className="closure-live" role="status" aria-live="polite">{copied && `Copied ${copied}`}</p>
 
     <details open className="closure-section">
