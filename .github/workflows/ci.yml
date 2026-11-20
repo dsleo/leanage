@@ -4,10 +4,6 @@ on:
   push:
   pull_request:
 
-env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -23,30 +19,3 @@ jobs:
       - run: npx vitest run --testTimeout=60000
       - run: npm run build
       - run: npm run build:cli
-
-  deploy:
-    needs: test
-    # Forks have no access to secrets, so only deploy from this repository.
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm i -g vercel@latest
-      - name: Deploy (production on main, preview otherwise)
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-            vercel build --prod --token="$VERCEL_TOKEN"
-            vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
-          else
-            vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
-            vercel build --token="$VERCEL_TOKEN"
-            vercel deploy --prebuilt --token="$VERCEL_TOKEN"
-          fi
