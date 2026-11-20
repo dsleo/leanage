@@ -12,5 +12,5 @@ export function SiteHeader() {
 }
 
 export function SiteFooter() {
-  return <footer><span>Leanage</span><nav aria-label="Footer navigation"><a href="/how-it-works" aria-current={window.location.pathname === '/how-it-works' ? 'page' : undefined}>How it works</a></nav></footer>
+  return <footer><nav aria-label="Footer navigation"><a href="/how-it-works" aria-current={window.location.pathname === '/how-it-works' ? 'page' : undefined}>How it works</a></nav></footer>
 }

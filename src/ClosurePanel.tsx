@@ -35,7 +35,7 @@ export function ClosurePanel({ graph, rootName }: { graph: LocalGraph; rootName:
     <p className="closure-live" role="status" aria-live="polite">{copied && `Copied ${copied}`}</p>
 
     <details open className="closure-section">
-      <summary><h3>Axioms</h3></summary>
+      <summary><h3>What axioms are used</h3></summary>
       <ScopeControl scope={scope} onChange={setScope} available={graph.hasEdgeTypes} name="axioms-scope" />
       {audit.length === 0
         ? <p className="closure-note">{scope === 'statement' ? 'No axioms: the statement (type) of this declaration does not reach any axiom through type references.' : 'No axioms: this declaration does not depend on any axiom at this Mathlib commit.'}</p>

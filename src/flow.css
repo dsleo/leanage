@@ -90,3 +90,5 @@ footer nav a { text-transform: none; letter-spacing: 0; font-size: 13px; font-we
 .answer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .answer-head h3 { margin: 0; font: 500 21px/1.2 'CMU Serif', serif; letter-spacing: -.01em; }
 .full-detail .graph-section { margin-top: 0; border-top: 0; padding-top: 0; }
+footer { justify-content: center; }
+.story-lean .decl-links, .path-node .decl-links { margin-left: 4px; }

@@ -120,6 +120,15 @@ function App() {
   const stage = !confirmed ? 'search' : !analysisStarted ? 'question' : 'results'
   const shownStage = useRef<string>('search')
   const fromPop = useRef(false)
+  // The URL records where we are (result, questions, whether the answer was requested), so a reload or shared link returns here.
+  const applyState = (url: URL) => {
+    for (const key of ['id', 'name', 'commit', 'detect', 'run', 'q']) url.searchParams.delete(key)
+    if (confirmed) {
+      setDeclarationParams(url, confirmed, localGraph.current?.meta.mathlib_commit)
+      objectives.forEach((objective) => url.searchParams.append('detect', objective.original))
+      if (analysisStarted) url.searchParams.set('run', '1')
+    } else if (searchedQuery && searchStatus === 'ready') url.searchParams.set('q', searchedQuery)
+  }
   const linkedStart = useRef(Boolean(initial.linkedId || initial.linkedName))
 
   // Each stage is a history entry, so the browser's Back and Forward move between them.
@@ -128,8 +137,7 @@ function App() {
     shownStage.current = stage
     if (fromPop.current) { fromPop.current = false; return }
     const url = new URL(window.location.href)
-    url.searchParams.delete('id'); url.searchParams.delete('name'); url.searchParams.delete('commit')
-    if (confirmed) setDeclarationParams(url, confirmed, localGraph.current?.meta.mathlib_commit)
+    applyState(url)
     if (linkedStart.current) { linkedStart.current = false; window.history.replaceState({ stage }, '', url); return }
     window.history.pushState({ stage }, '', url)
   }, [stage, confirmed?.id])
@@ -161,12 +169,16 @@ function App() {
 
   useEffect(() => {
     const url = new URL(window.location.href)
-    url.searchParams.delete('id')
-    url.searchParams.delete('name')
-    url.searchParams.delete('commit')
-    if (confirmed) setDeclarationParams(url, confirmed, localGraph.current?.meta.mathlib_commit)
+    applyState(url)
     window.history.replaceState(window.history.state, '', url)
-  }, [confirmed?.id, searchStatus])
+  }, [confirmed?.id, searchStatus, searchedQuery, objectives, analysisStarted])
+
+  // Restore the state a reload or shared link describes: re-run the search, or the analysis for a linked result.
+  const autoRun = useRef(new URLSearchParams(window.location.search).get('run') === '1')
+  useEffect(() => { if (initial.query && !initial.linkedId && !initial.linkedName) void search() }, [])
+  useEffect(() => {
+    if (autoRun.current && confirmed && objectives.length) { autoRun.current = false; void begin() }
+  }, [confirmed])
 
   useEffect(() => {
     if (searchStatus !== 'searching') return

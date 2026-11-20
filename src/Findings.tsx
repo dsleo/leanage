@@ -2,7 +2,7 @@ import { ArrowRight, LoaderCircle } from 'lucide-react'
 import type { Declaration, Objective, TraversalState } from './domain'
 import { collapseSteps } from './closureData'
 import { MathText } from './MathText'
-import { CopyNameButton, DeclLinks } from './DeclLinks'
+import { DeclLinks } from './DeclLinks'
 import { findEvidence, type Evidence, type MethodIndex } from './methods'
 
 function isDefinition(kind?: string) { return /^def(?:inition)?$/i.test(kind ?? '') }
@@ -39,10 +39,9 @@ function EvidenceItem({ evidence: raw, objective, theorem, names }: { evidence: 
           <div className="story-step">
             {informal ? <>
               <span className="story-informal">{link}<MathText text={informal} /></span>
-              <span className="story-lean">Lean · <code>{step.name}</code><CopyNameButton name={step.name} /><DeclLinks module={declaration?.module} name={step.name} /></span>
+              <span className="story-lean">Lean · <code>{step.name}</code><DeclLinks module={declaration?.module} name={step.name} /></span>
             </> : <>
-              <span className="path-node" title={step.id}>{link}{step.name}</span>
-              <span className="story-lean"><CopyNameButton name={step.name} /><DeclLinks module={declaration?.module} name={step.name} /></span>
+              <span className="path-node" title={step.id}>{link}{step.name}<DeclLinks module={declaration?.module} name={step.name} /></span>
               {declaration?.body && <span className="story-statement">{declaration.body}</span>}
             </>}
           </div>

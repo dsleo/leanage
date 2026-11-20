@@ -2,7 +2,7 @@
 .closure-live { min-height: 16px; margin: 4px 0 0; font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
 .closure-section { border-bottom: 1px solid var(--line); padding: 4px 0 14px; }
 .closure-section > summary { cursor: pointer; padding: 10px 0; list-style-position: inside; min-height: 40px; }
-.closure-section > summary h3 { display: inline; font: 500 22px 'Newsreader', serif; letter-spacing: -.02em; }
+.closure-section > summary h3 { display: inline; font: 700 13px 'CMU Sans', sans-serif; letter-spacing: 0; color: var(--green); }
 .closure-note, .closure-help { font-size: 13px; line-height: 1.55; color: var(--c-56625b); margin: 6px 0 10px; }
 .closure-help { font-size: 11px; color: var(--muted); }
 .closure-scope-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 8px; }
