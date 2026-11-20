@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LoaderCircle, Pause, Play } from 'lucide-react'
+import { ChevronDown, LoaderCircle, Network, Pause, Play } from 'lucide-react'
 import type { Declaration, Objective, Policy, TraversalState } from './domain'
 import { findEvidence, type MethodIndex } from './methods'
 import { GraphExplorer } from './GraphExplorer'
@@ -33,6 +33,7 @@ interface Props {
 export function ResultsSection({ theorem, objectives, states, methodIndex, indexStatus, indexError, isRunning, canResume, pauseRequested, onPause, onResume, onRetryIndex, onIncludeDefinitions, onContinue, storeNote, storeLoading, localGraph, storeMiss, onUseLocalName }: Props) {
   const [showDetails, setShowDetails] = useState(false)
   const hasGraph = [...states.values()].some((state) => state.visited.size > 0)
+  const observed = Math.max(0, ...[...states.values()].map((state) => state.visited.size))
   return <section className="results answer-stage" aria-labelledby="results-title">
     <div className="results-heading">
       <h2 id="results-title" className="sr-only" tabIndex={-1}>Answer</h2>
@@ -51,7 +52,7 @@ export function ResultsSection({ theorem, objectives, states, methodIndex, index
     {indexStatus === 'error' && <div className="inline-state error" role="alert">Recorded tactic evidence is unavailable: {indexError} Graph-reference detectors can still run. <button type="button" onClick={onRetryIndex}>Retry index</button></div>}
     <div className="answers">{objectives.map((objective) => <QuestionCard key={objective.id} objective={objective} state={objective.policy ? states.get(objective.policy) : undefined} theorem={theorem} index={methodIndex} indexStatus={indexStatus} onIncludeDefinitions={onIncludeDefinitions} onResume={onResume} />)}</div>
     {(hasGraph || localGraph) && <details className="full-detail" onToggle={(event) => setShowDetails(event.currentTarget.open)}>
-      <summary>Explore the dependency graph</summary>
+      <summary><Network size={18} aria-hidden="true" /><span className="full-detail-text"><strong>Dependency graph</strong>{observed > 1 && <small>{observed.toLocaleString()} declarations in the closure, and the axioms they use</small>}</span><ChevronDown size={18} className="full-detail-chevron" aria-hidden="true" /></summary>
       {showDetails && <>
         {hasGraph && <GraphExplorer headActions={localGraph ? <ExportMenu graph={localGraph} rootName={theorem.name} /> : undefined} states={states} root={theorem} onContinue={onContinue} canContinue={!isRunning} evidencePaths={objectives.flatMap((objective) => objective.policy ? findEvidence(states.get(objective.policy), objective, methodIndex).slice(0, 7).map((evidence) => ({ policy: objective.policy!, path: evidence.path })) : [])} />}
         {localGraph && <ClosurePanel graph={localGraph} rootName={theorem.name} />}

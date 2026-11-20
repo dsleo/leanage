@@ -37,8 +37,20 @@
 /* Answer stage: the answer first, the heavy views folded. */
 .answer-stage { border-top: 0; margin-top: 0; padding-top: 28px; }
 .answer-stage .results-heading { justify-content: flex-end; }
-.full-detail { margin-top: 28px; border-top: 1px solid var(--line); padding-top: 6px; }
-.full-detail > summary { cursor: pointer; padding: 14px 0; min-height: 44px; font-size: 13px; font-weight: 700; color: var(--green); }
+.full-detail { margin-top: 24px; border: 1px solid var(--line); background: var(--paper-light); }
+.full-detail > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 14px; padding: 14px 16px; min-height: 56px; color: var(--ink); }
+.full-detail > summary::-webkit-details-marker { display: none; }
+.full-detail > summary:hover { background: var(--accent-wash); }
+.full-detail > summary > svg:first-child { color: var(--accent); flex: none; }
+.full-detail-text { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.full-detail-text strong { font-size: 14px; font-weight: 700; }
+.full-detail-text small { font-size: 12px; color: var(--muted); }
+.full-detail-chevron { flex: none; color: var(--muted); transition: transform .2s; }
+.full-detail[open] > summary { border-bottom: 1px solid var(--line); }
+.full-detail[open] .full-detail-chevron { transform: rotate(180deg); }
+.full-detail > :not(summary) { margin-left: 16px; margin-right: 16px; }
+.full-detail > .graph-section { margin-top: 16px; }
+.full-detail > .closure-panel { margin-top: 20px; margin-bottom: 8px; border-top: 0; padding-top: 0; }
 .stage-results .candidate-select, .candidate-select { width: 44px; min-width: 44px; padding: 0; justify-content: center; }
 
 @media (max-width: 720px) {
