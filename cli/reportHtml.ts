@@ -35,7 +35,7 @@ var $=function(s){return document.querySelector(s)};
 var esc=function(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
 var byName={};D.decls.forEach(function(d,i){byName[d.n]=i});
 var users=D.decls.map(function(){return[]});D.decls.forEach(function(d,i){d.d.forEach(function(t){users[t].push(i)})});
-var focus=D.decls.map(function(d,i){return i}).filter(function(i){return D.decls[i].f});
+var focus=D.decls.map(function(d,i){return i}).filter(function(i){return D.decls[i].f&&!D.decls[i].b});
 var hasAx=function(d,a){return d.ax.some(function(x){return x.a===a})};
 var sorry=focus.filter(function(i){return hasAx(D.decls[i],'sorryAx')});
 var classical=focus.filter(function(i){var d=D.decls[i];return d.k==='t'&&hasAx(d,'Classical.choice')});
@@ -93,13 +93,14 @@ function overview(){
     var n=e.target.closest('circle');if(n){$('#q').value='';renderList();var el=document.querySelector('.mod[data-m="'+n.dataset.k+'"]');if(el)el.scrollIntoView()}}}
 
 function pathHtml(p){return '<div class="path">'+p.map(function(n,i){var lib=byName[n]!==undefined;return '<div class="'+(lib?'lib':'')+'">'+(i?'→ ':'')+(lib?'<span class="link" data-i="'+byName[n]+'">'+esc(n)+'</span>':esc(n))+' <span class="tag'+(lib?' l':'')+'">'+(lib?'library':'Mathlib')+'</span></div>'}).join('')+'</div>'}
+function where(d){var f=D.files[d.m];if(!f||!d.l)return '';var t=f+':'+d.l;return '<div class="sub">'+(D.root?'<a href="vscode://file/'+encodeURI(D.root+'/'+f)+':'+d.l+'">'+esc(t)+'</a>':esc(t))+'</div>'}
 function show(i){
   var d=D.decls[i],kinds={t:'theorem',d:'definition',i:'inductive',a:'axiom',o:'opaque'};
   var near=[i].concat(d.d.slice(0,25),users[i].slice(0,25)).filter(function(x,k,a){return a.indexOf(x)===k});
   var at={};near.forEach(function(x,k){at[x]=k});
   var edges=[];near.forEach(function(x){D.decls[x].d.forEach(function(t){if(at[t]!==undefined)edges.push([at[x],at[t]])})});
   var nodes=near.map(function(x){return{id:x,label:D.decls[x].n,c:x===i?'var(--accent)':color(D.mods[D.decls[x].m]),r:x===i?10:6}});
-  $('#main').innerHTML='<div class="box"><h2 class="mono" style="font-size:16px;font-variant:normal">'+esc(d.n)+badges(d)+'</h2><div class="sub">'+kinds[d.k]+' · '+esc(D.mods[d.m])+' · used by '+d.u+' declaration'+(d.u===1?'':'s')+' of the library</div></div>'+
+  $('#main').innerHTML='<div class="box"><h2 class="mono" style="font-size:16px;font-variant:normal">'+esc(d.n)+badges(d)+'</h2><div class="sub">'+kinds[d.k]+' · '+esc(D.mods[d.m])+' · used by '+d.u+' declaration'+(d.u===1?'':'s')+' of the library</div>'+where(d)+'</div>'+
   '<div class="box"><h2>Axioms</h2>'+(d.ax.length?d.ax.map(function(a){return '<div><b>'+esc(a.a)+(a.a==='sorryAx'?' — unfinished proof':'')+'</b>'+pathHtml(a.p)+'</div>'}).join('<br>'):'<div class="sub">None.</div>')+'</div>'+
   '<div class="box"><h2>Neighbourhood</h2><div class="sub">Library declarations it uses and those that use it. Click to move.</div>'+(near.length>1?graph(nodes,edges,null,700,320):'<div class="sub">Isolated in the library.</div>')+'</div>'+
   '<div class="box"><h2>Uses in the library ('+d.d.length+')</h2><ul class="plain">'+d.d.slice(0,80).map(function(t){return '<li class="mono link" data-i="'+t+'">'+esc(D.decls[t].n)+'</li>'}).join('')+'</ul></div>'+

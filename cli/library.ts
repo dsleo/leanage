@@ -31,6 +31,18 @@ export function builtModules(project: string): string[] {
   return []
 }
 
+/** Source file (relative to the project) of each built module, found by path suffix; modules with no matching file are left out. */
+export function moduleFiles(project: string, modules: string[]): [string, string][] {
+  const files = walk(project, '.lean', SKIP).map((f) => relative(project, f).split(/[\\/]/).join('/'))
+  const out: [string, string][] = []
+  for (const m of modules) {
+    const tail = m.split('.').join('/') + '.lean'
+    const f = files.find((x) => x === tail || x.endsWith('/' + tail))
+    if (f) out.push([m, f])
+  }
+  return out
+}
+
 /** Built modules whose source file lies under `dir` (matched by path suffix, since a Lake srcDir shortens the module path). */
 export function modulesUnder(project: string, dir: string, modules: string[]): string[] {
   const files = walk(resolve(dir), '.lean', SKIP).map((f) => relative(project, f).slice(0, -5).split(/[\\/]/).join('/'))
@@ -70,7 +82,8 @@ export function indexLibrary(project: string, dir: string | undefined): { file: 
   if (r.error) return { file, modules: mods.length, err: `Could not run lake: ${r.error.message}. Install Lean (https://lean-lang.org/install) and build the project first.\n` }
   if (r.status !== 0) return { file, modules: mods.length, err: 'The Lean extraction failed. Build the project first (lake build) so the modules have .olean files.\n' }
   const commit = manifestMathlibCommit(proj)
-  writeFileSync(file, (commit ? `# mathlib ${commit}\n` : '') + (focus ? `# focus ${focus.join(',')}\n` : '') + readFileSync(raw, 'utf8'))
+  const files = moduleFiles(proj, mods).map(([m, f]) => `# file ${m} ${f}\n`).join('')
+  writeFileSync(file, (commit ? `# mathlib ${commit}\n` : '') + files + (focus ? `# focus ${focus.join(',')}\n` : '') + readFileSync(raw, 'utf8'))
   return { file, modules: mods.length, focus: focus?.length }
 }
 
@@ -85,6 +98,8 @@ export function loadLibrary(graph: LocalGraph, spec: string): string[] {
     warnings.push(`warning: the library was built against Mathlib ${lib.mathlibCommit.slice(0, 7)} but the store is ${base.slice(0, 7)}; some references may not resolve\n`)
   graph.extend(lib.decls)
   if (lib.focus) graph.libraryFocus = new Set(lib.focus)
+  graph.libraryFiles = lib.files
+  graph.libraryRoot = spec.endsWith('.tsv') ? undefined : resolve(spec)
   if (graph.libraryUnresolved) warnings.push(`note: ${graph.libraryUnresolved} referenced names are not in the Mathlib store and were skipped (other packages, or another Mathlib version)\n`)
   return warnings
 }

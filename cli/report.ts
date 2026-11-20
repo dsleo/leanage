@@ -1,4 +1,4 @@
-import { axiomAudit, isGeneratedName } from '../src/closureData'
+import { axiomAudit, isGeneratedName, isStructuralAuxName } from '../src/closureData'
 import type { LocalGraph } from '../src/localGraph'
 import { REPORT_HTML } from './reportHtml'
 
@@ -13,11 +13,15 @@ export interface ReportDecl {
   ax: { a: string; p: string[] }[] // axioms reached, with the witness path
   s: boolean // refers to sorryAx directly
   u: number // number of library declarations that use it
+  l?: number // source line
+  b: boolean // instance, projection or coercion
 }
 export interface ReportData {
   project: string
   mathlib?: string
   built: string
+  root?: string // project directory, for editor links
+  files: string[] // source file per module index (empty when unknown)
   mods: string[]
   decls: ReportDecl[]
 }
@@ -56,11 +60,11 @@ export function buildReport(graph: LocalGraph, project: string): ReportData {
     return {
       n: graph.name(id), m: modIdx.get(module)!, k: graph.libraryKind(id)!, f: graph.inFocus(id), d: lib, ml: ext.slice(0, 40), mc: ext.length,
       ax: graph.libraryKind(id) === 't' || graph.libraryKind(id) === 'd' ? axiomAudit(graph, id).map((a) => ({ a: a.axiom, p: a.path })) : [],
-      s: sorry !== undefined && deps.includes(sorry), u: 0,
+      s: sorry !== undefined && deps.includes(sorry), u: 0, l: graph.libraryLine(id), b: graph.isBoilerplate(id) || isStructuralAuxName(graph.name(id)),
     }
   })
   decls.forEach((d, i) => { d.u = uses[i] })
-  return { project, mathlib: graph.meta.mathlib_commit, built: new Date().toISOString().slice(0, 10), mods, decls }
+  return { project, mathlib: graph.meta.mathlib_commit, built: new Date().toISOString().slice(0, 10), root: graph.libraryRoot, files: mods.map((m) => graph.libraryFiles?.get(m) ?? ''), mods, decls }
 }
 
 export function renderReport(data: ReportData): string {

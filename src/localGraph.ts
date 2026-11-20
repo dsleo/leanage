@@ -18,7 +18,7 @@ export interface StoreFiles {
   meta: StoreMeta
 }
 
-export interface LibraryDecl { name: string; module: string; kind: string; typeDeps: string[]; valueDeps: string[] }
+export interface LibraryDecl { name: string; module: string; kind: string; typeDeps: string[]; valueDeps: string[]; /** letters from extract_library.lean; undefined = not reported */ flags?: string; line?: number }
 
 export const TACTIC_COVERED = 1 << 15
 export interface TacticLegend {
@@ -118,6 +118,10 @@ export class LocalGraph {
   private libUnresolved = 0
   /** Modules of interest chosen at index time (a subset of the library); undefined means all of it. */
   libraryFocus?: Set<string>
+  /** Source file of each library module, relative to `libraryRoot` (the project directory); set by the CLI loader. */
+  libraryFiles?: Map<string, string>
+  libraryRoot?: string
+  private libLines: (number | undefined)[] = []
   private byName?: Map<string, number>
   private nameOrder?: 'sorted' | 'unsorted'
   private axiomIds?: Map<number, string>
@@ -347,7 +351,14 @@ export class LocalGraph {
     this.fwdStart = fwdStart
     this.fwdTarget = fwdTarget
     this.edgeBytes = edgeBytes
-    if (this.flagBytes) { const f = new Uint8Array(n).fill(FLAG_UNKNOWN); f.set(this.flagBytes); this.flagBytes = f }
+    if (this.flagBytes) {
+      const f = new Uint8Array(n).fill(FLAG_UNKNOWN)
+      f.set(this.flagBytes)
+      const bit: Record<string, number> = { i: FLAG_INSTANCE, p: FLAG_PROJECTION, c: FLAG_COE, d: FLAG_COE_DECL, C: FLAG_CLASS, S: FLAG_STRUCTURE, k: FLAG_STRUCTURE_CTOR }
+      decls.forEach((d, i) => { if (d.flags !== undefined) f[n0 + i] = [...d.flags].reduce((b, ch) => b | (bit[ch] ?? 0), 0) })
+      this.flagBytes = f
+    }
+    this.libLines = decls.map((d) => d.line)
     if (this.tacticBits) { const t = new Uint16Array(n); t.set(this.tacticBits); this.tacticBits = t }
     this.libKinds = decls.map((d) => d.kind)
     this.libUnresolved = unresolved.size
@@ -370,6 +381,11 @@ export class LocalGraph {
   /** True for library nodes in the modules of interest (all library nodes when no focus was chosen). */
   inFocus(id: number): boolean {
     return this.isLibrary(id) && (!this.libraryFocus || this.libraryFocus.has(this.module(id)))
+  }
+
+  /** 1-based source line of a library declaration, when Lean reported one. */
+  libraryLine(id: number): number | undefined {
+    return this.isLibrary(id) ? this.libLines[id - this.baseSize] : undefined
   }
 
   isLibrary(id: number): boolean {

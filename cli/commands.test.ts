@@ -135,4 +135,19 @@ describe('library layer', () => {
     expect(html).toContain('"Lib.main"')
     expect(html).not.toContain('/*DATA*/null')
   })
+
+  it('applies library flags and keeps source lines', () => {
+    const h = mk()
+    h.setFlags(new Uint8Array(3), {})
+    h.extend([
+      { name: 'Lib.inst', module: 'Lib.A', kind: 'd', typeDeps: [], valueDeps: [], flags: 'i', line: 7 },
+      { name: 'Lib.plain', module: 'Lib.A', kind: 'd', typeDeps: [], valueDeps: [], flags: '', line: 9 },
+      { name: 'Lib.old', module: 'Lib.A', kind: 'd', typeDeps: [], valueDeps: [] },
+    ])
+    expect(h.isBoilerplate(h.id('Lib.inst')!)).toBe(true)
+    expect(h.isBoilerplate(h.id('Lib.plain')!)).toBe(false)
+    expect(h.flagsOf(h.id('Lib.old')!)).toBeNull()
+    expect(h.libraryLine(h.id('Lib.inst')!)).toBe(7)
+    expect(h.libraryLine(0)).toBeUndefined()
+  })
 })
