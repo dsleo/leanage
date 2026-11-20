@@ -39,6 +39,26 @@ export interface FlagsLegend {
   bits?: Record<string, string>
 }
 
+// Same-commit edge types from Lean (scripts/extract_edges.lean): one byte per store edge, aligned to targets.vbyte.
+export const EDGE_IN_TYPE = 1
+export const EDGE_IN_VALUE = 2
+export const EDGE_DEF_VALUE = 4 // with EDGE_IN_VALUE: the source is a definition, so its value is part of its meaning
+export const EDGE_UNSEEN = 128
+export interface EdgeTypesLegend {
+  mathlib_commit?: string
+  edges?: number
+}
+/**
+ * 'proof' follows every edge. 'statement' asks what the claim means: from the root only references in its type, and from every
+ * constant reached, references in its type plus, for definitions (not theorems), references in its value.
+ */
+export type Scope = 'proof' | 'statement'
+
+function statementEdge(b: number, fromRoot: boolean): boolean {
+  if (b & EDGE_UNSEEN) return false
+  return (b & EDGE_IN_TYPE) !== 0 || (!fromRoot && (b & (EDGE_IN_VALUE | EDGE_DEF_VALUE)) === (EDGE_IN_VALUE | EDGE_DEF_VALUE))
+}
+
 export type Direction = 'dependencies' | 'dependents'
 
 export interface Reach {
@@ -96,6 +116,7 @@ export class LocalGraph {
   private tacticBits?: Uint16Array
   private tacticLegend: string[] = []
   private flagBytes?: Uint8Array
+  private edgeBytes?: Uint8Array
 
   constructor(files: StoreFiles) {
     this.meta = files.meta
@@ -204,6 +225,35 @@ export class LocalGraph {
     return b !== undefined && !(b & FLAG_UNKNOWN) && (b & BOILERPLATE_MASK) !== 0
   }
 
+  /** Optional same-commit edge types: one byte per edge. Anything inconsistent with the store is ignored. */
+  setEdgeTypes(bytes: Uint8Array, legend: EdgeTypesLegend = {}): boolean {
+    if (bytes.length !== this.fwdTarget.length) return false
+    if (legend.mathlib_commit && this.meta.mathlib_commit && legend.mathlib_commit !== this.meta.mathlib_commit) return false
+    this.edgeBytes = bytes
+    return true
+  }
+
+  get hasEdgeTypes(): boolean {
+    return this.edgeBytes !== undefined
+  }
+
+  /** Type bits of the i-th dependency of `from` (same order as dependencies(from)); null when unknown or absent. */
+  edgeTypes(from: number, i: number): number | null {
+    const b = this.edgeBytes?.[this.fwdStart[from] + i]
+    return b === undefined || b & EDGE_UNSEEN ? null : b
+  }
+
+  /** Dependencies that occur in the type ('type') or in the value ('value') of `id`; edges Lean did not report count as neither. */
+  dependenciesIn(id: number, part: 'type' | 'value'): Uint32Array {
+    const bytes = this.edgeBytes
+    if (!bytes) throw new Error('This store has no edge types')
+    const bit = part === 'type' ? EDGE_IN_TYPE : EDGE_IN_VALUE
+    const lo = this.fwdStart[id]
+    const out: number[] = []
+    for (let k = lo, hi = this.fwdStart[id + 1]; k < hi; k++) if (bytes[k] & bit && !(bytes[k] & EDGE_UNSEEN)) out.push(this.fwdTarget[k])
+    return Uint32Array.from(out)
+  }
+
   private ordered(): boolean {
     if (this.nameOrder === undefined) {
       let ok = true
@@ -257,7 +307,11 @@ export class LocalGraph {
     return this.revTarget.subarray(this.revStart[id], this.revStart[id + 1])
   }
 
-  reach(start: number, direction: Direction = 'dependencies'): Reach {
+  reach(start: number, direction: Direction = 'dependencies', scope: Scope = 'proof'): Reach {
+    const typeOnly = scope === 'statement'
+    if (typeOnly && direction !== 'dependencies') throw new Error("Scope 'statement' applies to dependencies only")
+    if (typeOnly && !this.edgeBytes) throw new Error('This store has no edge types')
+    const edgeBytes = typeOnly ? this.edgeBytes! : undefined
     const n = this.size
     const starts = direction === 'dependencies' ? this.fwdStart : this.revStart
     const targets = direction === 'dependencies' ? this.fwdTarget : this.revTarget
@@ -275,6 +329,7 @@ export class LocalGraph {
       for (let k = starts[u], hi = starts[u + 1]; k < hi; k++) {
         const v = targets[k]
         if (seen[v]) continue
+        if (edgeBytes && !statementEdge(edgeBytes[k], u === start)) continue
         seen[v] = 1
         parent[v] = u
         depth[v] = d
@@ -284,9 +339,9 @@ export class LocalGraph {
     return { order: order.subarray(0, tail), parent, depth }
   }
 
-  pathTo(from: number, to: number): number[] | null {
+  pathTo(from: number, to: number, scope: Scope = 'proof'): number[] | null {
     if (from === to) return [from]
-    const { parent } = this.reach(from)
+    const { parent } = this.reach(from, 'dependencies', scope)
     if (parent[to] === -1) return null
     const path = [to]
     for (let v = parent[to]; v !== from; v = parent[v]) path.push(v)
@@ -294,7 +349,7 @@ export class LocalGraph {
     return path.reverse()
   }
 
-  axioms(id: number): { axioms: string[]; closureSize: number } {
+  axioms(id: number, scope: Scope = 'proof'): { axioms: string[]; closureSize: number } {
     if (!this.axiomIds) {
       this.axiomIds = new Map()
       for (const a of AXIOM_NAMES) {
@@ -302,7 +357,7 @@ export class LocalGraph {
         if (i !== undefined) this.axiomIds.set(i, a)
       }
     }
-    const { order } = this.reach(id)
+    const { order } = this.reach(id, 'dependencies', scope)
     const found: string[] = []
     for (let i = 0; i < order.length; i++) {
       const a = this.axiomIds.get(order[i])
@@ -381,6 +436,13 @@ export async function loadLocalGraph(baseUrl: string, signal?: AbortSignal): Pro
   try {
     const [bytes, legend] = await Promise.all([get('flags.u8'), get('flags.json')])
     graph.setFlags(bytes, JSON.parse(decoder.decode(legend)) as FlagsLegend)
+  } catch (error) {
+    if (signal?.aborted) throw error
+  }
+  // Optional: a store without edgetypes.* cannot separate the statement from the proof.
+  try {
+    const [bytes, legend] = await Promise.all([get('edgetypes.u8'), get('edgetypes.json')])
+    graph.setEdgeTypes(bytes, JSON.parse(decoder.decode(legend)) as EdgeTypesLegend)
   } catch (error) {
     if (signal?.aborted) throw error
   }

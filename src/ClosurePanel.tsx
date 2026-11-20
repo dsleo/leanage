@@ -1,10 +1,11 @@
 import { Fragment, useDeferredValue, useEffect, useMemo, useState } from 'react'
-import type { LocalGraph } from './localGraph'
+import type { LocalGraph, Scope } from './localGraph'
 import {
   applyFilter, axiomAudit, closureRows, collapsePath, downloadText, groupByModule, parseFilter, toCsv, toDot, toJson,
   type ClosureRow,
 } from './closureData'
 import { moduleCsv, moduleDot, moduleGraph, moduleGroup, moduleJson } from './moduleView'
+import { DeclLinks } from './DeclLinks'
 import './closure.css'
 
 const PAGE = 200
@@ -14,14 +15,24 @@ function NameButton({ name, onCopy }: { name: string; onCopy: (name: string) => 
   return <button type="button" className="closure-name" title="Copy Lean name" aria-label={`Copy ${name}`} onClick={() => onCopy(name)}>{name}</button>
 }
 
-function RowTable({ rows, label, onCopy }: { rows: ClosureRow[]; label: string; onCopy: (name: string) => void }) {
+function RowTable({ rows, label, onCopy, commit }: { rows: ClosureRow[]; label: string; onCopy: (name: string) => void; commit?: string }) {
   return <div className="closure-scroll" tabIndex={0} role="region" aria-label={label}>
     <table className="closure-table">
       <thead><tr><th scope="col">Name</th><th scope="col">Module</th><th scope="col" className="num">Depth</th></tr></thead>
       <tbody>{rows.map((row) => <tr key={row.id}>
-        <td><NameButton name={row.name} onCopy={onCopy} /></td><td><code>{row.module}</code></td><td className="num">{row.depth}</td>
+        <td><NameButton name={row.name} onCopy={onCopy} /><DeclLinks module={row.module} name={row.name} commit={commit} /></td><td><code>{row.module}</code></td><td className="num">{row.depth}</td>
       </tr>)}</tbody>
     </table>
+  </div>
+}
+
+function ScopeControl({ scope, onChange, available, name }: { scope: Scope; onChange: (scope: Scope) => void; available: boolean; name: string }) {
+  return <div className="closure-scope-row">
+    <div role="group" aria-label={`Scope (${name})`} className="closure-scope">
+      <button type="button" className="closure-button" aria-pressed={scope === 'proof'} onClick={() => onChange('proof')}>Whole proof</button>
+      <button type="button" className="closure-button" aria-pressed={scope === 'statement'} disabled={!available} onClick={() => onChange('statement')}>Statement only</button>
+    </div>
+    {!available && <span className="closure-help" id={`${name}-note`}>Unavailable: this store has no edge types.</span>}
   </div>
 }
 
@@ -43,10 +54,12 @@ export function ClosurePanel({ graph, rootName }: { graph: LocalGraph; rootName:
   const [copied, setCopied] = useState('')
   const [byNamespace, setByNamespace] = useState(false)
   const [modLimit, setModLimit] = useState(PAGE)
+  const [scopeChoice, setScope] = useState<Scope>('proof')
+  const scope: Scope = scopeChoice === 'statement' && graph.hasEdgeTypes ? 'statement' : 'proof'
   const deferred = useDeferredValue(text)
 
-  const audit = useMemo(() => (rootId === undefined ? [] : axiomAudit(graph, rootId)), [graph, rootId])
-  const deps = useMemo(() => (rootId === undefined ? [] : closureRows(graph, rootId, 'dependencies').slice().sort(byDepthName)), [graph, rootId])
+  const audit = useMemo(() => (rootId === undefined ? [] : axiomAudit(graph, rootId, scope)), [graph, rootId, scope])
+  const deps = useMemo(() => (rootId === undefined ? [] : closureRows(graph, rootId, 'dependencies', scope).slice().sort(byDepthName)), [graph, rootId, scope])
   const users = useMemo(() => (rootId === undefined ? [] : closureRows(graph, rootId, 'dependents')), [graph, rootId])
   const generatedCount = useMemo(() => deps.reduce((n, row) => n + (row.generated ? 1 : 0), 0), [deps])
   const boilerplateCount = useMemo(() => deps.reduce((n, row) => n + (row.boilerplate ? 1 : 0), 0), [deps])
@@ -99,10 +112,13 @@ export function ClosurePanel({ graph, rootName }: { graph: LocalGraph; rootName:
 
     <details open className="closure-section">
       <summary><h3>Axioms</h3></summary>
+      <ScopeControl scope={scope} onChange={setScope} available={graph.hasEdgeTypes} name="axioms-scope" />
       {audit.length === 0
-        ? <p className="closure-note">No axioms: this declaration does not depend on any axiom at this Mathlib commit.</p>
+        ? <p className="closure-note">{scope === 'statement' ? 'No axioms: the statement (type) of this declaration does not reach any axiom through type references.' : 'No axioms: this declaration does not depend on any axiom at this Mathlib commit.'}</p>
         : <>
-          <p className="closure-note">Shortest dependency path to each axiom. This equals what <code>#print axioms</code> reports.</p>
+          <p className="closure-note">{scope === 'statement'
+            ? 'Shortest path to each axiom that the claim itself reaches: references in its type, then, for each definition it mentions, that definition\u2019s type and body. Proofs of theorems are not followed.'
+            : <>Shortest dependency path to each axiom. This equals what <code>#print axioms</code> reports.</>}</p>
           <ul className="closure-axioms">{audit.map((item) => <li key={item.axiom}>
             <strong><NameButton name={item.axiom} onCopy={copy} /></strong>
             <ol className="closure-path" aria-label={`Path to ${item.axiom}`}>
@@ -114,6 +130,7 @@ export function ClosurePanel({ graph, rootName }: { graph: LocalGraph; rootName:
 
     <details open className="closure-section">
       <summary><h3>Dependencies</h3></summary>
+      <ScopeControl scope={scope} onChange={setScope} available={graph.hasEdgeTypes} name="deps-scope" />
       <p className="closure-note" aria-live="polite">
         {deps.length.toLocaleString()} total · {filtered.length.toLocaleString()} shown after filter · {hideGenerated ? generatedCount.toLocaleString() : 0} compiler-generated hidden{hideBoiler ? ` · ${boilerplateCount.toLocaleString()} instances and coercions hidden` : ''}
       </p>
@@ -127,7 +144,7 @@ export function ClosurePanel({ graph, rootName }: { graph: LocalGraph; rootName:
       {chips.length > 0 && <p className="closure-chips"><span>Top modules:</span>{chips.map((chip) => <button key={chip.module} type="button" className="status-pill neutral" onClick={() => setText(`${chip.module}.*`)}>{chip.module} · {chip.count.toLocaleString()}</button>)}</p>}
       {filtered.length === 0
         ? <p className="inline-state">No dependency matches this filter.</p>
-        : <><RowTable rows={shownDeps} label={`Dependencies of ${rootName}`} onCopy={copy} /><ShowMore shown={shownDeps.length} total={filtered.length} onMore={() => setDepLimit((n) => n + PAGE)} /></>}
+        : <><RowTable rows={shownDeps} label={`Dependencies of ${rootName}`} onCopy={copy} commit={graph.meta.mathlib_commit} /><ShowMore shown={shownDeps.length} total={filtered.length} onMore={() => setDepLimit((n) => n + PAGE)} /></>}
     </details>
 
     <details open className="closure-section">
@@ -139,7 +156,7 @@ export function ClosurePanel({ graph, rootName }: { graph: LocalGraph; rootName:
           remaining -= take
           return take > 0 && <Fragment key={module}>
             <h4 className="closure-group">{module} <span>{rows.length.toLocaleString()}</span></h4>
-            <ul className="closure-users">{rows.slice(0, take).map((row) => <li key={row.id}><NameButton name={row.name} onCopy={copy} /></li>)}</ul>
+            <ul className="closure-users">{rows.slice(0, take).map((row) => <li key={row.id}><NameButton name={row.name} onCopy={copy} /><DeclLinks module={row.module} name={row.name} commit={graph.meta.mathlib_commit} /></li>)}</ul>
           </Fragment>
         })}
         <ShowMore shown={shownUsers.length} total={direct.length} onMore={() => setUseLimit((n) => n + PAGE)} />

@@ -1,4 +1,4 @@
-import { AXIOM_NAMES, type LocalGraph } from './localGraph'
+import { AXIOM_NAMES, type LocalGraph, type Scope } from './localGraph'
 
 // Level 1 (hidden, collapsed to the owner): compiler/elaborator auxiliaries nobody writes by hand.
 // Any component starting with `_` (_proof_N, _simp_N, _aux_N, _f, _unary, _sunfold, _cstage, _boxed, _closed,
@@ -51,8 +51,9 @@ export function collapseSteps<T extends { name: string }>(steps: T[]): T[] {
 
 export interface ClosureRow { id: number; name: string; module: string; depth: number; generated: boolean; boilerplate: boolean }
 
-export function closureRows(graph: LocalGraph, rootId: number, direction: 'dependencies' | 'dependents' = 'dependencies'): ClosureRow[] {
-  const { order, depth } = graph.reach(rootId, direction)
+// scope 'statement' (dependencies only, needs graph.hasEdgeTypes) follows just the references that occur in types.
+export function closureRows(graph: LocalGraph, rootId: number, direction: 'dependencies' | 'dependents' = 'dependencies', scope: Scope = 'proof'): ClosureRow[] {
+  const { order, depth } = graph.reach(rootId, direction, direction === 'dependencies' ? scope : 'proof')
   const rows: ClosureRow[] = []
   for (let i = 0; i < order.length; i++) {
     const id = order[i]
@@ -102,8 +103,9 @@ export function applyFilter(rows: ClosureRow[], filter: RowFilter): ClosureRow[]
 
 export interface AxiomPath { axiom: string; path: string[] }
 
-export function axiomAudit(graph: LocalGraph, rootId: number): AxiomPath[] {
-  const { order, parent } = graph.reach(rootId)
+// scope 'statement': axioms reached through type edges only, i.e. whether the claim itself (not its proof) uses them.
+export function axiomAudit(graph: LocalGraph, rootId: number, scope: Scope = 'proof'): AxiomPath[] {
+  const { order, parent } = graph.reach(rootId, 'dependencies', scope)
   const reached = new Set<number>(order)
   const out: AxiomPath[] = []
   for (const axiom of AXIOM_NAMES) {

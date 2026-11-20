@@ -16,7 +16,8 @@ export function localStates(graph: LocalGraph, root: Declaration, objectives: Ob
   const parents: TraversalState['parents'] = new Map()
   for (const id of order) {
     const name = graph.name(id)
-    names.set(name, name === rootId ? { ...root, id: name } : { id: name, name })
+    const module = graph.module(id)
+    names.set(name, name === rootId ? { ...root, id: name, module } : { id: name, name, module })
     parents.set(name, parent[id] < 0 ? null : { from: graph.name(parent[id]), edge: 'proof' })
   }
   const discovered = new Set(names.keys())

@@ -13,6 +13,7 @@ const USAGE = `leanage <command> [options]
 
 options:
   --filter '<expr>'         e.g. 'Topology.* -Classical.* word'  (deps, rdeps)
+  --scope statement|proof   axioms, deps, check: follow only references in types (needs edgetypes.u8) or all edges (default)
   --no-generated            hide compiler-generated names
   --no-boilerplate          hide instances, projections and coercions (needs flags.u8 in the store; otherwise an error)
   --format text|json|csv|dot   (--json is a shortcut for --format json)
@@ -29,7 +30,7 @@ export async function main(argv: string[]): Promise<Result> {
       args: argv, allowPositionals: true,
       options: {
         filter: { type: 'string' }, 'no-generated': { type: 'boolean' }, 'no-boilerplate': { type: 'boolean' }, format: { type: 'string' }, json: { type: 'boolean' },
-        forbid: { type: 'string', multiple: true }, store: { type: 'string' }, limit: { type: 'string' }, help: { type: 'boolean', short: 'h' },
+        forbid: { type: 'string', multiple: true }, store: { type: 'string' }, limit: { type: 'string' }, scope: { type: 'string' }, help: { type: 'boolean', short: 'h' },
       },
     })
   } catch (e) {
@@ -43,10 +44,14 @@ export async function main(argv: string[]): Promise<Result> {
     ...defaultOptions, format: format as Options['format'], filter: values.filter ?? '', noGenerated: !!values['no-generated'], noBoilerplate: !!values['no-boilerplate'],
     forbid: (values.forbid ?? []).flatMap((s) => s.split(',')).filter(Boolean), limit: Number(values.limit ?? defaultOptions.limit),
   }
+  if (values.scope !== undefined && !['statement', 'proof'].includes(values.scope)) return { out: '', err: `Unknown scope: ${values.scope}\n`, code: 2 }
+  if (values.scope && !['axioms', 'deps', 'check'].includes(cmd)) return { out: '', err: '--scope applies to axioms, deps and check\n', code: 2 }
+  o.scope = values.scope as Options['scope']
   const need = cmd === 'path' ? 2 : 1
   if (!['axioms', 'deps', 'rdeps', 'path', 'check'].includes(cmd) || args.length !== need) return { out: '', err: USAGE, code: 2 }
   const graph = await loadStore(values.store ?? process.env.LEANAGE_STORE ?? DEFAULT_STORE)
   if (o.noBoilerplate && !graph.hasFlags) return { out: '', err: '--no-boilerplate needs a store with flags.u8, and this one has none\n', code: 2 }
+  if (o.scope === 'statement' && !graph.hasEdgeTypes) return { out: '', err: '--scope statement needs a store with edgetypes.u8, and this one has none\n', code: 2 }
   switch (cmd) {
     case 'axioms': return axiomsCmd(graph, args[0], o)
     case 'deps': return closureCmd(graph, args[0], 'dependencies', o)

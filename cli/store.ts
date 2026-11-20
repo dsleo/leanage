@@ -4,9 +4,9 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { gunzipSync } from 'node:zlib'
-import { LocalGraph, type FlagsLegend, type StoreMeta } from '../src/localGraph'
+import { LocalGraph, type EdgeTypesLegend, type FlagsLegend, type StoreMeta } from '../src/localGraph'
 
-export const DEFAULT_STORE = 'https://huggingface.co/datasets/dsleo/leanage-mathlib-store/resolve/a8434c821ffa646e896e1f9b7b7f37ca71acb339'
+export const DEFAULT_STORE = 'https://huggingface.co/datasets/dsleo/leanage-mathlib-store/resolve/d530ba8562c45508109e9bae033f2e08c760c218'
 const FILES = ['names.txt', 'modules.txt', 'node_module.u32', 'degrees.vbyte', 'targets.vbyte', 'meta.json']
 
 const unzip = (b: Buffer): Buffer => (b.length > 1 && b[0] === 0x1f && b[1] === 0x8b ? gunzipSync(b) : b)
@@ -50,5 +50,9 @@ export async function loadStore(spec: string): Promise<LocalGraph> {
     const [bytes, legend] = await Promise.all(['flags.u8', 'flags.json'].map(async (f) => unzip(await readStoreFile(spec, f, dir))))
     graph.setFlags(new Uint8Array(bytes), JSON.parse(text(legend)) as FlagsLegend)
   } catch { /* no flags */ }
+  try { // optional: stores without edgetypes.* cannot separate statement from proof
+    const [bytes, legend] = await Promise.all(['edgetypes.u8', 'edgetypes.json'].map(async (f) => unzip(await readStoreFile(spec, f, dir))))
+    graph.setEdgeTypes(new Uint8Array(bytes), JSON.parse(text(legend)) as EdgeTypesLegend)
+  } catch { /* no edge types */ }
   return graph
 }

@@ -17,7 +17,7 @@ import './flow.css'
 import './styles.css'
 
 const client = new TheoremGraphClient()
-const STORE_URL = (import.meta.env.VITE_STORE_URL as string | undefined) ?? 'https://huggingface.co/datasets/dsleo/leanage-mathlib-store/resolve/a8434c821ffa646e896e1f9b7b7f37ca71acb339'
+const STORE_URL = (import.meta.env.VITE_STORE_URL as string | undefined) ?? 'https://huggingface.co/datasets/dsleo/leanage-mathlib-store/resolve/d530ba8562c45508109e9bae033f2e08c760c218'
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Name permalinks carry the Mathlib commit they were made against, so a different store can say so.
@@ -106,7 +106,7 @@ function App() {
     const graph = await ensureStore()
     if (!graph) return []
     const label = `Mathlib@${graph.meta.mathlib_commit?.slice(0, 7) ?? 'local'}`
-    return lookupName(graph, text, 5).filter((match) => match.reason !== 'substring' && match.reason !== 'namespace-moved').map((match) => ({ id: match.name, name: match.name, sourceLabel: `${label} · ${match.module}`, score: 0, loading: false }))
+    return lookupName(graph, text, 5).filter((match) => match.reason !== 'substring' && match.reason !== 'namespace-moved').map((match) => ({ id: match.name, name: match.name, sourceLabel: `${label} · ${match.module}`, module: match.module, score: 0, loading: false }))
   }
 
   const activeStates = Array.from(states.values())
@@ -193,7 +193,7 @@ function App() {
         if (!live) return
         const id = graph?.id(initial.linkedName!)
         if (!graph || id === undefined) { setSearchStatus('error'); setSearchError(`${initial.linkedName} is not in the local store.`); return }
-        const declaration: Declaration = { id: initial.linkedName!, name: initial.linkedName!, sourceLabel: `Mathlib@${graph.meta.mathlib_commit?.slice(0, 7) ?? 'local'}` }
+        const declaration: Declaration = { id: initial.linkedName!, name: initial.linkedName!, sourceLabel: `Mathlib@${graph.meta.mathlib_commit?.slice(0, 7) ?? 'local'}`, module: graph.module(id) }
         const commit = graph.meta.mathlib_commit ?? ''
         if (initial.linkedCommit && !commit.startsWith(initial.linkedCommit)) setStoreNote(`This link was made against Mathlib ${initial.linkedCommit}; this store is Mathlib ${commit.slice(0, 7)}, so results may differ.`)
         setConfirmed(declaration)
@@ -397,7 +397,7 @@ function App() {
   function confirm(candidate: Candidate) {
     if (candidate.loading || candidate.error) return
     dismissResolver()
-    const declaration: Declaration = { id: candidate.id, name: candidate.name, kind: candidate.kind, body: candidate.body, slogan: candidate.slogan, source: candidate.source, sourceLabel: candidate.sourceLabel }
+    const declaration: Declaration = { id: candidate.id, name: candidate.name, kind: candidate.kind, body: candidate.body, slogan: candidate.slogan, source: candidate.source, sourceLabel: candidate.sourceLabel, module: candidate.module }
     setConfirmed(declaration)
     setIncludeDefinitions(false)
     setAnalysisStarted(false)
@@ -430,7 +430,7 @@ function App() {
   }
 
   function analyseLocalName(name: string) {
-    const declaration: Declaration = { id: name, name, sourceLabel: `Mathlib@${localGraph.current?.meta.mathlib_commit?.slice(0, 7) ?? 'local'}` }
+    const declaration: Declaration = { id: name, name, sourceLabel: `Mathlib@${localGraph.current?.meta.mathlib_commit?.slice(0, 7) ?? 'local'}`, module: (() => { const g = localGraph.current; const i = g?.id(name); return g && i !== undefined ? g.module(i) : undefined })() }
     setConfirmed(declaration)
     setStoreMiss(null)
     resetAnalysis(objectives, methodIndex, includeDefinitions, declaration)

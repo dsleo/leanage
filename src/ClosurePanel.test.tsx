@@ -110,4 +110,37 @@ describe('ClosurePanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Graphviz DOT' }))
     expect(vi.mocked(downloadText).mock.calls[1][0]).toBe('Test.root.deps.dot')
   })
+
+  it('links each dependency and dependent to its docs page', () => {
+    render(<ClosurePanel graph={small} rootName="Test.root" />)
+    const link = screen.getAllByRole('link', { name: 'Docs for Test.mid' })[0]
+    expect(link.getAttribute('href')).toBe('https://leanprover-community.github.io/mathlib4_docs/M.html#Test.mid')
+    expect(link.getAttribute('target')).toBe('_blank')
+    expect(link.getAttribute('rel')).toContain('noopener')
+    expect(screen.queryByRole('link', { name: /Source of/ })).toBeNull()
+  })
+})
+
+describe('ClosurePanel scope', () => {
+  afterEach(cleanup)
+  it('disables the statement scope without edge types', () => {
+    render(<ClosurePanel graph={small} rootName="Test.root" />)
+    expect((screen.getAllByRole('button', { name: 'Statement only' })[0] as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getAllByText(/no edge types/i).length).toBeGreaterThan(0)
+  })
+
+  it('statement scope drops the axiom reached only through the proof', () => {
+    const graph = new LocalGraph(files({
+      'Test.root': ['Test.mid', 'Nat.zero_add', 'Test.root.match_1'],
+      'Test.mid': ['Classical.choice'],
+      'Classical.choice': ['Nonempty'],
+    }))
+    // sorted ids: Classical.choice, Nat.zero_add, Nonempty, Test.mid, Test.root, Test.root.match_1
+    // Test.mid -> Classical.choice (value); Test.root -> Nat.zero_add (type), Test.mid (value), match_1 (value); Classical.choice -> Nonempty (type)
+    expect(graph.setEdgeTypes(Uint8Array.from([1, 2, 1, 2, 2]), { mathlib_commit: 'abc1234def' })).toBe(true)
+    render(<ClosurePanel graph={graph} rootName="Test.root" />)
+    expect(screen.getAllByRole('button', { name: 'Copy Classical.choice' }).length).toBeGreaterThan(0)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Statement only' })[0])
+    expect(screen.getByText(/statement \(type\) of this declaration does not reach any axiom/)).toBeTruthy()
+  })
 })

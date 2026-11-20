@@ -19,6 +19,8 @@ export interface Declaration {
   slogan?: string
   source?: string
   sourceLabel?: string
+  /** Lean module, known only for declarations resolved from the local store. */
+  module?: string
 }
 
 export interface Edge {

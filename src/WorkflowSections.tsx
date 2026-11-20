@@ -2,6 +2,7 @@ import type { RefObject } from 'react'
 import { ArrowRight, LoaderCircle, Plus, Search, X } from 'lucide-react'
 import type { Candidate, Declaration, Objective } from './domain'
 import { MathText } from './MathText'
+import { CopyNameButton, DeclLinks } from './DeclLinks'
 import { CandidateCard } from './CandidateSection'
 import { SUGGESTIONS } from './objectives'
 
@@ -43,6 +44,7 @@ export function ContextBar({ declaration }: { declaration: Declaration }) {
       <span className="context-label">Result of interest</span>
       <strong className={declaration.slogan ? 'context-statement' : 'context-name'}>{declaration.slogan ? <MathText text={declaration.slogan} /> : declaration.name}</strong>
       {declaration.slogan && <code>{declaration.name}</code>}
+      <span className="context-links"><CopyNameButton name={declaration.name} /><DeclLinks module={declaration.module} name={declaration.name} /></span>
     </div>
   </div>
   {isDefinition(declaration.kind) && <div className="declaration-kind-note"><strong>This is a definition, not a theorem</strong><p>Its body may contain proofs. If the proof-only scan stops here, you can choose to explore its definition dependencies.</p></div>}
