@@ -4,7 +4,7 @@ import type { Declaration, Objective, Policy, TraversalState } from './domain'
 import { findEvidence, type MethodIndex } from './methods'
 import { GraphExplorer } from './GraphExplorer'
 import { QuestionCard } from './Findings'
-import { ClosurePanel } from './ClosurePanel'
+import { ClosurePanel, ExportMenu } from './ClosurePanel'
 import type { LocalGraph } from './localGraph'
 import type { LocalMatch } from './localLookup'
 
@@ -52,10 +52,10 @@ export function ResultsSection({ theorem, objectives, states, methodIndex, index
     {(hasGraph || localGraph) && <details className="full-detail" onToggle={(event) => setShowDetails(event.currentTarget.open)}>
       <summary>Explore the full dependency graph and closure</summary>
       {showDetails && <>
-        {hasGraph && <GraphExplorer states={states} root={theorem} onContinue={onContinue} canContinue={!isRunning} evidencePaths={objectives.flatMap((objective) => objective.policy ? findEvidence(states.get(objective.policy), objective, methodIndex).slice(0, 7).map((evidence) => ({ policy: objective.policy!, path: evidence.path })) : [])} />}
+        {hasGraph && <GraphExplorer headActions={localGraph ? <ExportMenu graph={localGraph} rootName={theorem.name} /> : undefined} states={states} root={theorem} onContinue={onContinue} canContinue={!isRunning} evidencePaths={objectives.flatMap((objective) => objective.policy ? findEvidence(states.get(objective.policy), objective, methodIndex).slice(0, 7).map((evidence) => ({ policy: objective.policy!, path: evidence.path })) : [])} />}
         {localGraph && <ClosurePanel graph={localGraph} rootName={theorem.name} />}
+        <p className="fine-print">A path confirms a reference. It does not reconstruct the Lean proof script.{storeNote ? ` ${storeNote}` : ''}</p>
       </>}
     </details>}
-    <p className="fine-print">A path confirms a reference. It does not reconstruct the Lean proof script.{storeNote ? ` ${storeNote}` : ''}</p>
   </section>
 }

@@ -98,7 +98,7 @@ export default function HowItWorks() {
         <section aria-labelledby="g-closure">
           <div><h2 id="g-closure">Closure panel and links</h2></div>
           <div>
-            <p>The closure panel lists the axioms reached with one path to each, the full dependency table (name, module, depth) with a filter such as <code>Topology.* -Classical.*</code>, the declarations that use this one, and export as CSV, JSON or DOT. You can hide generated names and instance, coercion and projection boilerplate.</p>
+            <p>The closure panel lists the axioms reached with one path to each, for the whole proof or for the statement only. The download icon next to the graph exports the full dependency closure as CSV, JSON or Graphviz DOT, without compiler-generated names. The command line offers filters, reverse dependencies and the instance and coercion filter.</p>
             <p>Any declaration has a permanent link of the form <code>/?name=Nat.add_comm&amp;commit=fc4f59e</code>. The commit records which Mathlib the link was made against, so a different store can tell you the answer may differ.</p>
           </div>
         </section>

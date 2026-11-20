@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowDownLeft, Focus, Maximize2, Minus, Play, Plus, Search, X } from 'lucide-react'
 import type { Declaration, Edge, PathStep, Policy, TraversalState } from './domain'
 import { pathTo } from './explorer'
@@ -215,7 +215,7 @@ function GraphView({ state, root, expanded, onExpand, focusRequest, evidencePath
   </div>
 }
 
-export function GraphExplorer({ states, root, onContinue, canContinue, focusRequest, evidencePaths }: { states: Map<Policy, TraversalState>; root: Declaration; onContinue: (policy: Policy) => void; canContinue: boolean; focusRequest?: { id: string; policy: Policy; serial: number }; evidencePaths: EvidencePath[] }) {
+export function GraphExplorer({ states, root, onContinue, canContinue, focusRequest, evidencePaths, headActions }: { headActions?: ReactNode; states: Map<Policy, TraversalState>; root: Declaration; onContinue: (policy: Policy) => void; canContinue: boolean; focusRequest?: { id: string; policy: Policy; serial: number }; evidencePaths: EvidencePath[] }) {
   const [policy, setPolicy] = useState<Policy>('proof')
   const [expanded, setExpanded] = useState(false)
   const dialogRef = useRef<HTMLDialogElement>(null)
@@ -235,7 +235,7 @@ export function GraphExplorer({ states, root, onContinue, canContinue, focusRequ
   }, [expanded, Boolean(state)])
   if (!state) return null
   return <section className="graph-section" aria-labelledby="graph-title">
-    <div className="graph-section-head"><div><p className="eyebrow">05 / GRAPH</p><h2 id="graph-title" tabIndex={-1}>The explored graph</h2><p>Explore observed dependencies, including links between branches. Highlighted paths lead to a finding.</p></div></div>
+    <div className="graph-section-head"><h2 id="graph-title" tabIndex={-1}>The explored graph</h2>{headActions}</div>
     {available.length > 1 && <div className="graph-policy" role="group" aria-label="Dependency type">{available.map((option) => <button type="button" key={option} className={effectivePolicy === option ? 'active' : ''} aria-pressed={effectivePolicy === option} onClick={() => setPolicy(option)}>{POLICY_LABEL[option]}</button>)}</div>}
     <dialog ref={dialogRef} className={`graph-dialog ${expanded ? 'expanded' : ''}`} aria-label="Dependency graph explorer" onCancel={(event) => { event.preventDefault(); setExpanded(false) }}><GraphView key={`${root.id}-${effectivePolicy}`} state={state} root={root} expanded={expanded} onExpand={() => setExpanded((value) => !value)} focusRequest={focusRequest?.policy === effectivePolicy ? focusRequest : undefined} evidencePaths={evidencePaths.filter((item) => item.policy === effectivePolicy).map((item) => item.path)} /></dialog>
     {state.completionReason === 'witnesses' && state.frontier.length > 0 && <details className="graph-more"><summary>Explore beyond the first match</summary><div className="graph-continue"><p>More dependencies may reveal other paths.</p><button type="button" disabled={!canContinue} onClick={() => onContinue(effectivePolicy)}><Play size={14} /> Continue exploring</button></div></details>}

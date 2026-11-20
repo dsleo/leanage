@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LocalGraph, type StoreFiles } from './localGraph'
-import { ClosurePanel } from './ClosurePanel'
+import { ClosurePanel, ExportMenu } from './ClosurePanel'
 import { downloadText } from './closureData'
 
 vi.mock('./closureData', async (original) => ({ ...(await original<typeof import('./closureData')>()), downloadText: vi.fn() }))
@@ -30,13 +30,6 @@ const small = new LocalGraph(files({
   'Classical.choice': ['Nonempty'],
 }))
 const clean = new LocalGraph(files({ 'Test.pure': ['Nat.zero_add'] }))
-const chain = (() => {
-  const names = Array.from({ length: 450 }, (_, i) => `Chain.root.match_${String(i).padStart(3, '0')}`)
-  const edges: Record<string, string[]> = { 'Chain.root': [names[0]] }
-  names.forEach((name, i) => { edges[name] = i + 1 < names.length ? [names[i + 1]] : ['Nat.zero'] })
-  return new LocalGraph(files(edges))
-})()
-const rowCount = () => document.querySelectorAll('.closure-table tbody tr').length
 
 afterEach(() => { cleanup(); vi.clearAllMocks() })
 
@@ -56,68 +49,14 @@ describe('ClosurePanel', () => {
     expect(container.textContent).toBe('')
   })
 
-  it('filters the table and lists direct dependents', async () => {
-    render(<ClosurePanel graph={small} rootName="Test.root" />)
-    const before = rowCount()
-    fireEvent.change(screen.getByLabelText('Filter'), { target: { value: 'zero_add' } })
-    await vi.waitFor(() => expect(rowCount()).toBe(1))
-    expect(before).toBeGreaterThan(1)
-    expect(screen.getByText(/1 declaration depends/)).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Copy Test.user' })).toBeTruthy()
-  })
-
-  it('toggles compiler-generated names', () => {
-    render(<ClosurePanel graph={small} rootName="Test.root" />)
-    const hidden = rowCount()
-    fireEvent.click(screen.getByLabelText(/Hide compiler-generated names/))
-    expect(rowCount()).toBe(hidden + 1)
-  })
-
-  it('disables the instances and coercions toggle when the store has no flags', () => {
-    render(<ClosurePanel graph={small} rootName="Test.root" />)
-    const box = screen.getByLabelText(/Hide instances and coercions/) as HTMLInputElement
-    expect(box.disabled).toBe(true)
-    expect(box.checked).toBe(false)
-  })
-
-  it('hides instances and coercions with their count when flags exist', () => {
-    const graph = new LocalGraph(files({ 'Test.root': ['Test.inst', 'Test.lemma', 'Test.cast'] }))
-    const flags = new Uint8Array(graph.size)
-    flags[graph.id('Test.inst')!] = 1
-    flags[graph.id('Test.cast')!] = 4
-    expect(graph.setFlags(flags, {})).toBe(true)
-    render(<ClosurePanel graph={graph} rootName="Test.root" />)
-    const before = rowCount()
-    const box = screen.getByLabelText(/Hide instances and coercions \(2\)/) as HTMLInputElement
-    expect(box.disabled).toBe(false)
-    fireEvent.click(box)
-    expect(rowCount()).toBe(before - 2)
-    expect(screen.getByText(/2 instances and coercions hidden/)).toBeTruthy()
-  })
-
-  it('caps rows at 200 and shows more on request', () => {
-    render(<ClosurePanel graph={chain} rootName="Chain.root" />)
-    fireEvent.click(screen.getByLabelText(/Hide compiler-generated names/))
-    expect(rowCount()).toBe(200)
-    fireEvent.click(screen.getByRole('button', { name: 'Show 200 more' }))
-    expect(rowCount()).toBe(400)
-  })
-
-  it('exports the filtered rows', () => {
-    render(<ClosurePanel graph={small} rootName="Test.root" />)
-    fireEvent.click(screen.getByRole('button', { name: 'CSV' }))
-    expect(downloadText).toHaveBeenCalledWith('Test.root.deps.csv', expect.stringContaining('Test.mid'), 'text/csv')
-    fireEvent.click(screen.getByRole('button', { name: 'Graphviz DOT' }))
-    expect(vi.mocked(downloadText).mock.calls[1][0]).toBe('Test.root.deps.dot')
-  })
-
-  it('links each dependency and dependent to its docs page', () => {
-    render(<ClosurePanel graph={small} rootName="Test.root" />)
-    const link = screen.getAllByRole('link', { name: 'Docs for Test.mid' })[0]
-    expect(link.getAttribute('href')).toBe('https://leanprover-community.github.io/mathlib4_docs/M.html#Test.mid')
-    expect(link.getAttribute('target')).toBe('_blank')
-    expect(link.getAttribute('rel')).toContain('noopener')
-    expect(screen.queryByRole('link', { name: /Source of/ })).toBeNull()
+  it('downloads the dependency closure in the chosen format', () => {
+    render(<ExportMenu graph={small} rootName="Test.root" />)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'CSV' }))
+    expect(downloadText).toHaveBeenCalledTimes(1)
+    const [file, text] = vi.mocked(downloadText).mock.calls[0]
+    expect(file).toBe('Test.root.deps.csv')
+    expect(text).toContain('Test.mid')
+    expect(text).not.toContain('Test.root.match_1')
   })
 })
 

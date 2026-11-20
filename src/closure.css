@@ -44,3 +44,12 @@
 @media (max-width: 640px) { .decl-links a, .decl-copy { min-width: 40px; min-height: 40px; } }
 .closure-users li { display: flex; flex-wrap: wrap; align-items: center; }
 .closure-table td:first-child { display: flex; align-items: center; gap: 2px; }
+.graph-section-head { align-items: center; }
+.export-menu { position: relative; margin-left: auto; }
+.export-menu > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; min-width: 40px; min-height: 40px; color: var(--accent); border: 1px solid var(--line); }
+.export-menu > summary::-webkit-details-marker { display: none; }
+.export-menu > summary:hover, .export-menu[open] > summary { background: var(--accent-wash); }
+.export-list { position: absolute; right: 0; top: 44px; z-index: 5; min-width: 220px; padding: 6px; background: var(--paper-light); border: 1px solid var(--line); box-shadow: 0 6px 20px rgba(18,22,31,.14); }
+.export-list button { display: block; width: 100%; min-height: 40px; padding: 0 12px; border: 0; background: none; color: var(--ink); text-align: left; font-size: 13px; }
+.export-list button:hover { background: var(--accent-wash); }
+.export-list .closure-help { margin: 6px 12px 8px; }
