@@ -73,3 +73,21 @@ leanage check <name> --forbid Classical.choice    # exit 1 if reached, 2 if name
 ```
 
 `--json` is short for `--format json`. `--store <dir-or-url>` (or `LEANAGE_STORE`) selects the store; the default is the Hugging Face dataset, downloaded once into `~/.cache/leanage`. Unknown names print up to 5 suggestions and exit 2.
+
+### Install from npm
+
+The CLI is also packaged standalone (`cli/package.json`, single bundled file, no dependencies, Node >= 18): `npx leanage check <name> --forbid Classical.choice`. Build it with `npm run build:cli` (output `cli/dist/leanage.mjs`); see `cli/README.md` for the CI example and exit codes (0 ok, 1 check failed or no path, 2 name missing or usage error). `--store <dir-or-url>` overrides the pinned Hugging Face store revision in `cli/store.ts`.
+
+## Deploying
+
+`.github/workflows/ci.yml` runs `npm ci`, `npx tsc -b`, `npx vitest run --testTimeout=60000`, `npm run build` and `npm run build:cli` on every push and pull request (store-backed tests are skipped unless `LEANAGE_STORE` is set, so CI needs no data). After that, a push to `main` deploys to Vercel production with the Vercel CLI (`vercel pull`, `vercel build --prod`, `vercel deploy --prebuilt --prod`); pull requests from this repository get a preview deploy.
+
+Add three repository secrets (Settings, Secrets and variables, Actions):
+
+- `VERCEL_TOKEN`: create at https://vercel.com/account/tokens.
+- `VERCEL_ORG_ID`: `team_OiHw7P9JYiDOtIAHtLKAl2Yq` (`orgId` in `.vercel/project.json`).
+- `VERCEL_PROJECT_ID`: `prj_vcw8t9fxA0Plri3q9IAHpjPlsA8H` (`projectId` in `.vercel/project.json`).
+
+The two ids are not secret, but keeping them as secrets keeps the workflow file generic.
+
+Alternative: connect the GitHub repository in the Vercel dashboard (Project, Settings, Git). Vercel then deploys production on pushes to `main` and previews on branches with no secrets and no workflow, but it deploys regardless of whether the GitHub Actions tests pass. If you use it, delete the `deploy` job from the workflow.

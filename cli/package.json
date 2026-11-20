@@ -1,0 +1,14 @@
+{
+  "name": "leanage",
+  "version": "0.1.0",
+  "description": "Query the Lean/Mathlib dependency graph from the command line: axioms, dependencies, paths, and CI checks.",
+  "type": "module",
+  "bin": { "leanage": "dist/leanage.mjs" },
+  "files": ["dist/leanage.mjs", "README.md"],
+  "engines": { "node": ">=18" },
+  "license": "Apache-2.0",
+  "repository": { "type": "git", "url": "git+https://github.com/dsleo/leanage.git", "directory": "cli" },
+  "homepage": "https://github.com/dsleo/leanage#command-line",
+  "bugs": { "url": "https://github.com/dsleo/leanage/issues" },
+  "keywords": ["lean", "lean4", "mathlib", "axioms", "dependencies", "formal-verification", "cli"]
+}
