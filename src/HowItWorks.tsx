@@ -47,6 +47,7 @@ export default function HowItWorks() {
             <p>Dependencies come from a local store built from the open dataset <code>mathlib-const-dep</code>: <strong>807,065 declarations</strong> of Mathlib at commit <code>fc4f59e</code> (Lean v4.36.0), with every reference between them. The store is a static copy loaded into your browser; closures are computed there, not on a server.</p>
             <p>Same-commit tactic information comes from <code>mathlib-tactics</code>, matched to declarations by module and source position. TheoremGraph is used only for search by description and for statements shown beside results; it does not decide any dependency answer when the store has the declaration.</p>
             <p>Everything is pinned to that one Mathlib commit. A newer Mathlib may differ, and the store is updated by hand.</p>
+            <p>The <strong>Mathlib + TauCeti</strong> switch uses a second store, extracted with Lean from the Mathlib commit that <Ext href="https://github.com/TauCetiProject/TauCeti">TauCeti</Ext> pins (<code>31ce06e</code>, Lean v4.37.0-rc1), with the TauCeti declarations layered on top. It has no tactic records, and TauCeti is searched by Lean name only, because TheoremGraph does not index it. Results carry a Mathlib or TauCeti tag, and TauCeti links go to its own documentation.</p>
           </div>
         </section>
 
@@ -122,6 +123,7 @@ leanage check <name> --forbid Classical.choice`}</pre>
               <li><Ext href="https://huggingface.co/datasets/mathlib-initiative/mathlib-const-dep">mathlib-initiative/mathlib-const-dep</Ext>: the dependency graph (Apache-2.0).</li>
               <li><Ext href="https://huggingface.co/datasets/mathlib-initiative/mathlib-tactics">mathlib-initiative/mathlib-tactics</Ext>: tactic records from Mathlib source (Apache-2.0).</li>
               <li><Ext href="https://github.com/leanprover-community/mathlib4">Mathlib</Ext>: the library analysed (Apache-2.0).</li>
+              <li><Ext href="https://github.com/TauCetiProject/TauCeti">TauCeti</Ext>: the AI-written Lean library built on Mathlib, analysed in the second store (Apache-2.0).</li>
               <li><Ext href="https://www.theoremsearch.com/docs">TheoremGraph</Ext> (api.theoremsearch.com): search by description and statements.</li>
               <li><Ext href="https://lean-lang.org">Lean</Ext>: the proof assistant, used to extract instance and coercion flags and to check axioms.</li>
               <li><Ext href="https://huggingface.co/datasets/dsleo/leanage-mathlib-store">dsleo/leanage-mathlib-store</Ext>: the compact store Leanage derived from the datasets above (Apache-2.0).</li>

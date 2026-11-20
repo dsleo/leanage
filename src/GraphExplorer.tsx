@@ -4,6 +4,7 @@ import type { Declaration, Edge, PathStep, Policy, TraversalState } from './doma
 import { pathTo } from './explorer'
 import { POLICY_LABEL } from './domain'
 import { safeSourceUrl } from './api'
+import { LibraryTag } from './LibraryTag'
 import './graph.css'
 
 type Positioned = { id: string; declaration: Declaration; x: number; y: number; depth: number }
@@ -223,7 +224,7 @@ function GraphView({ state, root, expanded, onExpand, focusRequest, evidencePath
       </svg></div>}
       {selected && <aside className="graph-inspector" aria-label="Selected declaration">
         <p className="eyebrow">SELECTED DECLARATION</p>
-        <h3>{selected.declaration.name}</h3>
+        <h3>{selected.declaration.name} <LibraryTag module={selected.declaration.module} sourceLabel={selected.declaration.sourceLabel} /></h3>
         {selected?.declaration.body && <pre>{selected.declaration.body}</pre>}
         {selected?.declaration.slogan && <details className="graph-summary"><summary>Read declaration summary</summary><p className="graph-slogan">{selected.declaration.slogan}</p></details>}
         {fullMode && <>

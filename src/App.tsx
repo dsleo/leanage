@@ -3,6 +3,7 @@ import { ApiError, TheoremGraphClient } from './api'
 import type { Candidate, Declaration, Objective, Policy, TraversalState } from './domain'
 import { Explorer } from './explorer'
 import { loadLocalGraph, type LocalGraph } from './localGraph'
+import { STORE_URLS, parseMode, tagOf, type Mode } from './libraries'
 import { localStates } from './localExplorer'
 import { isLeanNameLike, lookupName, type LocalMatch } from './localLookup'
 import { loadMethodIndex, type MethodIndex } from './methods'
@@ -18,13 +19,13 @@ import './flow.css'
 import './styles.css'
 
 const client = new TheoremGraphClient()
-const STORE_URL = (import.meta.env.VITE_STORE_URL as string | undefined) ?? 'https://huggingface.co/datasets/dsleo/leanage-mathlib-store/resolve/d530ba8562c45508109e9bae033f2e08c760c218'
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Name permalinks carry the Mathlib commit they were made against, so a different store can say so.
-function setDeclarationParams(url: URL, declaration: { id: string; name: string }, commit?: string) {
+function setDeclarationParams(url: URL, declaration: { id: string; name: string }, commit?: string, mode?: Mode) {
   if (UUID.test(declaration.id)) { url.searchParams.set('id', declaration.id); return }
   url.searchParams.set('name', declaration.name)
+  if (mode === 'tauceti') url.searchParams.set('lib', 'tauceti')
   if (commit) url.searchParams.set('commit', commit.slice(0, 7))
 }
 
@@ -33,7 +34,7 @@ function initialUrl() {
   const query = params.get('q') ?? ''
   const raw = params.getAll('detect')
   const objectives = raw.map(interpretObjective).filter((value): value is Objective => Boolean(value))
-  return { query, objectives, linkedId: params.get('id'), linkedName: params.get('name'), linkedCommit: params.get('commit') }
+  return { query, objectives, linkedId: params.get('id'), linkedName: params.get('name'), linkedCommit: params.get('commit'), mode: parseMode(params.get('lib')) }
 }
 
 const initial = initialUrl()
@@ -69,10 +70,13 @@ function App() {
   const [indexStatus, setIndexStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const [indexError, setIndexError] = useState('')
   const [resolver, setResolver] = useState<Resolver | null>(null)
+  const [mode, setMode] = useState<Mode>(initial.mode)
+  const modeRef = useRef<Mode>(initial.mode)
   const [storeStatus, setStoreStatus] = useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
   const [storeNote, setStoreNote] = useState('')
   const localGraph = useRef<LocalGraph | null>(null)
-  const storePromise = useRef<Promise<LocalGraph | null> | null>(null)
+  const storePromises = useRef<Partial<Record<Mode, Promise<LocalGraph | null>>>>({})
+  const graphs = useRef<Partial<Record<Mode, LocalGraph>>>({})
   const [storeMiss, setStoreMiss] = useState<LocalMatch[] | null>(null)
   const [apiPending, setApiPending] = useState(false)
   const searchController = useRef<AbortController | null>(null)
@@ -83,21 +87,54 @@ function App() {
   const loggedTraversals = useRef(new Map<Policy, string>())
   const explorer = useRef(new Explorer(client, setStates))
 
-  function ensureStore(): Promise<LocalGraph | null> {
-    if (localGraph.current) return Promise.resolve(localGraph.current)
-    if (!storePromise.current) {
-      setStoreStatus('loading')
-      storePromise.current = loadLocalGraph(STORE_URL).then((graph) => {
-        localGraph.current = graph
-        setStoreStatus('ready')
+  // One store per mode: Mathlib alone, or Mathlib at TauCeti's pin with the TauCeti declarations in the same graph.
+  const loadStore = (m: Mode) => loadLocalGraph(STORE_URLS[m])
+
+  function ensureStore(m: Mode = modeRef.current): Promise<LocalGraph | null> {
+    const ready = graphs.current[m]
+    if (ready) return Promise.resolve(ready)
+    if (!storePromises.current[m]) {
+      if (m === modeRef.current) setStoreStatus('loading')
+      storePromises.current[m] = loadStore(m).then((graph) => {
+        graphs.current[m] = graph
+        if (m === modeRef.current) { localGraph.current = graph; setStoreStatus('ready') }
         return graph
       }).catch((error) => {
-        debug('local store unavailable', { error: formatError(error) })
-        setStoreStatus('unavailable')
+        debug('local store unavailable', { mode: m, error: formatError(error) })
+        if (m === modeRef.current) setStoreStatus('unavailable')
+        delete storePromises.current[m]
         return null
       })
     }
-    return storePromise.current
+    return storePromises.current[m]!
+  }
+
+  // The source label names the library and the commit the store was built from, as Mathlib@abc1234 or TauCeti.
+  function labelFor(graph: LocalGraph, module?: string) {
+    return tagOf(module) === 'TauCeti' ? 'TauCeti' : `Mathlib@${graph.meta.mathlib_commit?.slice(0, 7) ?? 'local'}`
+  }
+
+  function changeMode(next: Mode) {
+    if (next === mode) return
+    searchController.current?.abort()
+    searchSerial.current++
+    dismissResolver()
+    explorer.current.cancel()
+    modeRef.current = next
+    localGraph.current = graphs.current[next] ?? null
+    setMode(next)
+    setStoreStatus(graphs.current[next] ? 'ready' : 'idle')
+    setStoreMiss(null)
+    setConfirmed(null)
+    setIncludeDefinitions(false)
+    setAnalysisStarted(false)
+    setStates(new Map())
+    setCandidates([])
+    setApiPending(false)
+    setSearchError('')
+    setSearchNotice('')
+    setSearchStatus('idle')
+    void ensureStore(next)
   }
 
   // A Lean name needs no API: the store can offer it directly, and still can when the API is down or does not know the name.
@@ -105,8 +142,7 @@ function App() {
     if (!isLeanNameLike(text)) return []
     const graph = await ensureStore()
     if (!graph) return []
-    const label = `Mathlib@${graph.meta.mathlib_commit?.slice(0, 7) ?? 'local'}`
-    return lookupName(graph, text, 5).filter((match) => match.reason !== 'substring' && match.reason !== 'namespace-moved').map((match) => ({ id: match.name, name: match.name, sourceLabel: `${label} · ${match.module}`, module: match.module, score: 0, loading: false }))
+    return lookupName(graph, text, 5).filter((match) => match.reason !== 'substring' && match.reason !== 'namespace-moved').map((match) => ({ id: match.name, name: match.name, sourceLabel: `${labelFor(graph, match.module)} · ${match.module}`, module: match.module, score: 0, loading: false }))
   }
 
   const activeStates = Array.from(states.values())
@@ -122,12 +158,13 @@ function App() {
   const fromPop = useRef(false)
   // The URL records where we are (result, questions, whether the answer was requested), so a reload or shared link returns here.
   const applyState = (url: URL) => {
-    for (const key of ['id', 'name', 'commit', 'detect', 'run', 'q']) url.searchParams.delete(key)
+    for (const key of ['id', 'name', 'commit', 'detect', 'run', 'q', 'lib']) url.searchParams.delete(key)
     if (confirmed) {
-      setDeclarationParams(url, confirmed, localGraph.current?.meta.mathlib_commit)
+      setDeclarationParams(url, confirmed, localGraph.current?.meta.mathlib_commit, mode)
       objectives.forEach((objective) => url.searchParams.append('detect', objective.original))
       if (analysisStarted) url.searchParams.set('run', '1')
-    } else if (searchedQuery && searchStatus === 'ready') url.searchParams.set('q', searchedQuery)
+    } else if (searchedQuery && searchStatus === 'ready') { url.searchParams.set('q', searchedQuery); if (mode === 'tauceti') url.searchParams.set('lib', 'tauceti') }
+    else if (mode === 'tauceti') url.searchParams.set('lib', 'tauceti')
   }
   const linkedStart = useRef(Boolean(initial.linkedId || initial.linkedName))
 
@@ -171,7 +208,7 @@ function App() {
     const url = new URL(window.location.href)
     applyState(url)
     window.history.replaceState(window.history.state, '', url)
-  }, [confirmed?.id, searchStatus, searchedQuery, objectives, analysisStarted])
+  }, [confirmed?.id, searchStatus, searchedQuery, objectives, analysisStarted, mode])
 
   // Restore the state a reload or shared link describes: re-run the search, or the analysis for a linked result.
   const autoRun = useRef(new URLSearchParams(window.location.search).get('run') === '1')
@@ -205,7 +242,7 @@ function App() {
         if (!live) return
         const id = graph?.id(initial.linkedName!)
         if (!graph || id === undefined) { setSearchStatus('error'); setSearchError(`${initial.linkedName} is not in the local store.`); return }
-        const declaration: Declaration = { id: initial.linkedName!, name: initial.linkedName!, sourceLabel: `Mathlib@${graph.meta.mathlib_commit?.slice(0, 7) ?? 'local'}`, module: graph.module(id) }
+        const declaration: Declaration = { id: initial.linkedName!, name: initial.linkedName!, sourceLabel: labelFor(graph, graph.module(id)), module: graph.module(id) }
         const commit = graph.meta.mathlib_commit ?? ''
         if (initial.linkedCommit && !commit.startsWith(initial.linkedCommit)) setStoreNote(`This link was made against Mathlib ${initial.linkedCommit}; this store is Mathlib ${commit.slice(0, 7)}, so results may differ.`)
         setConfirmed(declaration)
@@ -367,6 +404,16 @@ function App() {
     const controller = new AbortController()
     searchController.current = controller
     const serial = ++searchSerial.current
+    // TauCeti is not in TheoremGraph: only Lean names are searched there, from the local store.
+    if (modeRef.current === 'tauceti') {
+      if (!isLeanNameLike(searchQuery)) { setSearchStatus('idle'); setSearchNotice('TauCeti is searched by Lean name for now. Switch to Mathlib for a plain-English search.'); return }
+      const items = await localCandidates(searchQuery)
+      if (serial !== searchSerial.current) return
+      if (!items.length) { setSearchStatus('empty'); return }
+      setCandidates(items)
+      setSearchStatus('ready')
+      return
+    }
     const started = performance.now()
     const local = localCandidates(searchQuery)
     // A Lean name is answered from the local store at once; TheoremGraph results join the list when they arrive.
@@ -442,7 +489,7 @@ function App() {
   }
 
   function analyseLocalName(name: string) {
-    const declaration: Declaration = { id: name, name, sourceLabel: `Mathlib@${localGraph.current?.meta.mathlib_commit?.slice(0, 7) ?? 'local'}`, module: (() => { const g = localGraph.current; const i = g?.id(name); return g && i !== undefined ? g.module(i) : undefined })() }
+    const declaration: Declaration = { id: name, name, sourceLabel: (() => { const g = localGraph.current; const i = g?.id(name); return g ? labelFor(g, i !== undefined ? g.module(i) : undefined) : 'local' })(), module: (() => { const g = localGraph.current; const i = g?.id(name); return g && i !== undefined ? g.module(i) : undefined })() }
     setConfirmed(declaration)
     setStoreMiss(null)
     resetAnalysis(objectives, methodIndex, includeDefinitions, declaration)
@@ -483,7 +530,7 @@ function App() {
         <div className="workspace-grid">
           <div className="main-column">
             {stage === 'search' && <>
-              <SearchSection query={query} onQueryChange={setQuery} onSearch={() => void search()} onCancel={cancelSearch} inputRef={searchInput} status={searchStatus} seconds={searchSeconds} notice={searchNotice} error={searchError} />
+              <SearchSection query={query} onQueryChange={setQuery} onSearch={() => void search()} onCancel={cancelSearch} inputRef={searchInput} status={searchStatus} seconds={searchSeconds} notice={searchNotice} error={searchError} mode={mode} onModeChange={changeMode} />
               {searchStatus === 'ready' && <CandidateSection candidates={candidates} visible={visibleResults} visibleCount={visibleCandidates} query={searchedQuery} onConfirm={confirm} onShowMore={showMoreCandidates} pending={apiPending} />}
             </>}
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { docsUrl, sourceUrl } from './links'
+import { docsUrl, libraryOf, sourceUrl } from './links'
 
 const commit = 'fc4f59e577feb1a4956671bc04ac18aaaf8cd842'
 describe('links', () => {
@@ -23,5 +23,13 @@ describe('links', () => {
     for (const m of ['Init.Prelude', 'Std.Data.HashMap.Basic', 'Lean.Elab.Term', 'Batteries.Data.List.Basic']) expect(sourceUrl(m, commit)).toBeNull()
     expect(sourceUrl('Mathlib.Order.Basic', undefined)).toBeNull()
     expect(sourceUrl('Mathlib.Order.Basic', 'not-a-hash')).toBeNull()
+  })
+  it('links TauCeti modules to the TauCeti docs and repository', () => {
+    const tc = 'b2350004c40546f72a9ed4f47921b94b9517174e'
+    expect(libraryOf('TauCeti.Algebra.Lie.F4.ModularLattice')).toBe('tauceti')
+    expect(libraryOf('Mathlib.Order.Basic')).toBe('mathlib')
+    expect(libraryOf('Lean.Elab.Term')).toBeNull()
+    expect(docsUrl('TauCeti.Algebra.Lie.F4.ModularLattice', 'foo')).toBe('https://taucetiproject.github.io/TauCeti/docs/TauCeti/Algebra/Lie/F4/ModularLattice.html#foo')
+    expect(sourceUrl('TauCeti.Algebra.Lie.F4.ModularLattice', tc)).toBe(`https://github.com/TauCetiProject/TauCeti/blob/${tc}/TauCeti/Algebra/Lie/F4/ModularLattice.lean`)
   })
 })
