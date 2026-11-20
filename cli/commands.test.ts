@@ -2,8 +2,9 @@
 import { describe, expect, it } from 'vitest'
 import { gzipSync } from 'node:zlib'
 import { LocalGraph } from '../src/localGraph'
-import { axiomsCmd, checkCmd, closureCmd, defaultOptions, pathCmd } from './commands'
+import { axiomsCmd, checkCmd, closureCmd, defaultOptions, libsCmd, pathCmd } from './commands'
 import { loadStore } from './store'
+import { buildReport, renderReport } from './report'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -75,5 +76,63 @@ describe('cli commands', () => {
     put('names.txt', b.names); put('modules.txt', b.modules); put('node_module.u32', b.nodeModule)
     put('degrees.vbyte', b.degrees); put('targets.vbyte', b.targets); put('meta.json', JSON.stringify(b.meta))
     expect((await loadStore(d)).size).toBe(names.length)
+  })
+})
+
+describe('library layer', () => {
+  // Base: Nat.add_comm (no deps), propext, sorryAx. Library: Lib.helper -> Nat.add_comm (value); Lib.main -> Lib.helper (value), Lib.stmt (type); Lib.bad -> sorryAx (value).
+  const base = ['Nat.add_comm', 'propext', 'sorryAx']
+  const mk = () => new LocalGraph({ names: base.join('\n') + '\n', modules: 'Init\n', nodeModule: new Uint8Array(12), degrees: new Uint8Array([0, 0, 0]), targets: new Uint8Array(0), meta: { nodes: 3, edges: 0 } })
+  const decls = [
+    { name: 'Lib.helper', module: 'Lib.A', kind: 't', typeDeps: [], valueDeps: ['Nat.add_comm', 'Other.Pkg.x'] },
+    { name: 'Lib.main', module: 'Lib.B', kind: 't', typeDeps: ['Lib.stmt'], valueDeps: ['Lib.helper'] },
+    { name: 'Lib.stmt', module: 'Lib.A', kind: 'd', typeDeps: [], valueDeps: [] },
+    { name: 'Lib.bad', module: 'Lib.B', kind: 't', typeDeps: [], valueDeps: ['sorryAx'] },
+  ]
+  const g2 = mk()
+  g2.extend(decls)
+
+  it('puts library ids after the store and resolves names across layers', () => {
+    expect(g2.libraryStart).toBe(3)
+    expect(g2.id('Lib.main')).toBe(4)
+    expect(g2.id('Nat.add_comm')).toBe(0)
+    expect(g2.isLibrary(4)).toBe(true)
+    expect(g2.isLibrary(0)).toBe(false)
+    expect(g2.libraryUnresolved).toBe(1)
+    expect(g2.module(g2.id('Lib.bad')!)).toBe('Lib.B')
+  })
+
+  it('finds paths and dependents across the boundary', () => {
+    const p = pathCmd(g2, 'Lib.main', 'Nat.add_comm', o)
+    expect(p.out).toContain('[library] Lib.B')
+    expect(p.out).toContain('[Mathlib] Init')
+    expect(closureCmd(g2, 'Nat.add_comm', 'dependents', o).out).toContain('Lib.main')
+  })
+
+  it('reports sorryAx for the unfinished library theorem only', () => {
+    expect(axiomsCmd(g2, 'Lib.bad', o).out).toContain('sorryAx')
+    expect(axiomsCmd(g2, 'Lib.main', o).out).toContain('no axioms')
+    const libs = libsCmd(g2, o).out.split('\n').filter(Boolean)
+    expect(libs).toEqual(['Lib.helper\tLib.A\t', 'Lib.bad\tLib.B\tsorryAx', 'Lib.main\tLib.B\t'])
+  })
+
+  it('keeps search and base lookups working', () => {
+    expect(g2.search('Lib.', 10)).toContain('Lib.stmt')
+    expect(g2.search('Nat.', 10)).toEqual(['Nat.add_comm'])
+    expect(g2.id('missing')).toBeUndefined()
+  })
+
+  it('builds report data with direct dependencies, sorry flags and a self-contained page', () => {
+    const r = buildReport(g2, 'Lib')
+    const by = (n: string) => r.decls.find((d) => d.n === n)!
+    expect(r.decls.map((d) => d.n).sort()).toEqual(['Lib.bad', 'Lib.helper', 'Lib.main', 'Lib.stmt'])
+    expect(by('Lib.main').d.map((i) => r.decls[i].n).sort()).toEqual(['Lib.helper', 'Lib.stmt'])
+    expect(by('Lib.helper').ml).toEqual(['Nat.add_comm'])
+    expect(by('Lib.bad').s).toBe(true)
+    expect(by('Lib.bad').ax.map((a) => a.a)).toEqual(['sorryAx'])
+    expect(by('Lib.helper').u).toBe(1)
+    const html = renderReport(r)
+    expect(html).toContain('"Lib.main"')
+    expect(html).not.toContain('/*DATA*/null')
   })
 })

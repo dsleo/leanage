@@ -72,6 +72,20 @@ leanage path <from> <to>
 leanage check <name> --forbid Classical.choice    # exit 1 if reached, 2 if name missing
 ```
 
+### Your own library on top of Mathlib
+
+Needs Lean installed and your Lake project built (`lake build`) against the same Mathlib commit as the store.
+
+```
+leanage index <project> [--dir <subdir>]   # runs scripts/extract_library.lean over every module the project has built; --dir marks the modules of interest; writes <project>/.leanage/library.tsv
+leanage report --lib <project> [--out file.html]          # self-contained HTML report: health, module graph, per-declaration witness paths
+leanage libs --lib <project>                              # your theorems and the axioms each reaches (sorryAx = unfinished)
+leanage path MyLib.main Classical.choice --lib <project>  # witness path, each step tagged [library] or [Mathlib]
+leanage check MyLib.main --forbid sorryAx --lib <project>
+```
+
+`--lib` works with every command. See [docs/LIBRARY_LAYER_PLAN.md](docs/LIBRARY_LAYER_PLAN.md).
+
 `--json` is short for `--format json`. `--store <dir-or-url>` (or `LEANAGE_STORE`) selects the store; the default is the Hugging Face dataset, downloaded once into `~/.cache/leanage`. Unknown names print up to 5 suggestions and exit 2.
 
 ### Install from npm

@@ -1,4 +1,4 @@
-import { applyFilter, axiomAudit, closureRows, collapsePath, parseFilter, toCsv, toDot, toJson } from '../src/closureData'
+import { applyFilter, axiomAudit, isGeneratedName, closureRows, collapsePath, parseFilter, toCsv, toDot, toJson } from '../src/closureData'
 import type { LocalGraph, Scope } from '../src/localGraph'
 import { lookupName } from '../src/localLookup'
 
@@ -42,9 +42,37 @@ export function pathCmd(graph: LocalGraph, from: string, to: string, o: Options)
   if (b === undefined) return missing(graph, to)
   const raw = graph.pathTo(a, b)
   const path = raw && collapsePath(raw.map((i) => graph.name(i)))
+  if (path && o.format === 'text' && graph.libraryStart !== undefined) return done(layered(graph, path))
   if (o.format === 'json') return { out: json({ from, to, path }), err: '', code: path ? 0 : 1 }
   if (!path) return { out: '', err: `No dependency path from ${from} to ${to}\n`, code: 1 }
   return done(path.join(' -> ') + '\n')
+}
+
+/** Witness path with the layer of each step, shown when a library is loaded. */
+function layered(graph: LocalGraph, path: string[]): string {
+  const rows = path.map((name) => {
+    const id = graph.id(name)
+    const layer = id !== undefined && graph.isLibrary(id) ? 'library' : 'Mathlib'
+    return { name, layer, module: id === undefined ? '' : graph.module(id) }
+  })
+  const w = Math.max(...rows.map((r) => r.name.length))
+  return rows.map((r, i) => `${i ? '  -> ' : '     '}${r.name.padEnd(w)}  [${r.layer}] ${r.module}`).join('\n') + '\n'
+}
+
+/** Library theorems and lemmas, with the axioms each reaches (sorryAx marks unfinished proofs). */
+export function libsCmd(graph: LocalGraph, o: Options): Result {
+  const start = graph.libraryStart
+  if (start === undefined) return { out: '', err: 'libs needs --lib <project>\n', code: 2 }
+  const rows: { name: string; module: string; axioms: string[] }[] = []
+  for (let id = start; id < graph.size; id++) {
+    if (graph.libraryKind(id) !== 't' || !graph.inFocus(id)) continue
+    const name = graph.name(id)
+    if (isGeneratedName(name)) continue
+    rows.push({ name, module: graph.module(id), axioms: graph.axioms(id, o.scope).axioms })
+  }
+  rows.sort((a, b) => a.module.localeCompare(b.module) || a.name.localeCompare(b.name))
+  if (o.format === 'json') return done(json(rows))
+  return done(rows.map((r) => `${r.name}\t${r.module}\t${r.axioms.join(',')}`).join('\n') + (rows.length ? '\n' : ''))
 }
 
 const matches = (name: string, pattern: string) => (pattern.endsWith('.*') ? name.startsWith(pattern.slice(0, -1)) : name === pattern)

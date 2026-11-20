@@ -18,6 +18,8 @@ export interface StoreFiles {
   meta: StoreMeta
 }
 
+export interface LibraryDecl { name: string; module: string; kind: string; typeDeps: string[]; valueDeps: string[] }
+
 export const TACTIC_COVERED = 1 << 15
 export interface TacticLegend {
   mathlib_commit?: string
@@ -101,15 +103,21 @@ function decodeVarints(bytes: Uint8Array, count: number, label: string): Uint32A
 }
 
 export class LocalGraph {
-  readonly meta: StoreMeta
-  readonly size: number
-  private readonly names: string[]
-  private readonly modules: string[]
-  private readonly moduleOf: Uint32Array
-  private readonly fwdStart: Uint32Array
-  private readonly fwdTarget: Uint32Array
-  private readonly revStart: Uint32Array
-  private readonly revTarget: Uint32Array
+  meta: StoreMeta
+  size: number
+  private names: string[]
+  private modules: string[]
+  private moduleOf: Uint32Array
+  private fwdStart: Uint32Array
+  private fwdTarget: Uint32Array
+  private revStart: Uint32Array
+  private revTarget: Uint32Array
+  private baseSize = 0
+  private libByName?: Map<string, number>
+  private libKinds: string[] = []
+  private libUnresolved = 0
+  /** Modules of interest chosen at index time (a subset of the library); undefined means all of it. */
+  libraryFocus?: Set<string>
   private byName?: Map<string, number>
   private nameOrder?: 'sorted' | 'unsorted'
   private axiomIds?: Map<number, string>
@@ -123,6 +131,7 @@ export class LocalGraph {
     this.names = splitLines(files.names)
     const n = this.names.length
     this.size = n
+    this.baseSize = n
     if (files.meta.nodes !== n) {
       throw new Error(`Store meta says ${files.meta.nodes} nodes but names.txt has ${n}`)
     }
@@ -159,6 +168,16 @@ export class LocalGraph {
     }
     this.fwdTarget = targets
 
+    this.revStart = new Uint32Array(0)
+    this.revTarget = new Uint32Array(0)
+    this.buildReverse()
+  }
+
+  private buildReverse(): void {
+    const n = this.size
+    const targets = this.fwdTarget
+    const fwdStart = this.fwdStart
+    const total = targets.length
     const revStart = new Uint32Array(n + 1)
     for (let k = 0; k < total; k++) revStart[targets[k] + 1]++
     for (let i = 0; i < n; i++) revStart[i + 1] += revStart[i]
@@ -257,7 +276,7 @@ export class LocalGraph {
   private ordered(): boolean {
     if (this.nameOrder === undefined) {
       let ok = true
-      for (let i = 1; i < this.names.length; i++) {
+      for (let i = 1; i < this.baseSize; i++) {
         if (!(this.names[i - 1] < this.names[i])) {
           ok = false
           break
@@ -270,7 +289,7 @@ export class LocalGraph {
 
   private lowerBound(prefix: string): number {
     let lo = 0
-    let hi = this.names.length
+    let hi = this.baseSize
     while (lo < hi) {
       const mid = (lo + hi) >>> 1
       if (this.names[mid] < prefix) lo = mid + 1
@@ -279,14 +298,99 @@ export class LocalGraph {
     return lo
   }
 
+  /**
+   * Adds a library layer on top of the store: its declarations get ids from `size` upward and may point at store nodes or at each other.
+   * Store nodes never point at the library. Edges to names found nowhere are counted in `libraryUnresolved`, not stored.
+   * Library edge bytes follow the same bits as the store's (type, value, definition value); flags are unknown and tactics absent.
+   */
+  extend(decls: LibraryDecl[]): void {
+    if (this.libByName) throw new Error('A library layer is already loaded')
+    const n0 = this.size
+    const n = n0 + decls.length
+    this.libByName = new Map(decls.map((d, i) => [d.name, n0 + i]))
+    const moduleIds = new Map(this.modules.map((m, i) => [m, i]))
+    const moduleOf = new Uint32Array(n)
+    moduleOf.set(this.moduleOf)
+    const lists: [number, number][][] = []
+    const unresolved = new Set<string>()
+    decls.forEach((d, i) => {
+      if (!moduleIds.has(d.module)) { moduleIds.set(d.module, this.modules.length); this.modules.push(d.module) }
+      moduleOf[n0 + i] = moduleIds.get(d.module)!
+      const bits = new Map<number, number>()
+      const add = (deps: string[], bit: number) => {
+        for (const dep of deps) {
+          const t = this.id(dep)
+          if (t === undefined) { unresolved.add(dep); continue }
+          if (t === n0 + i) continue
+          bits.set(t, (bits.get(t) ?? 0) | bit | (bit === EDGE_IN_VALUE && d.kind === 'd' ? EDGE_DEF_VALUE : 0))
+        }
+      }
+      add(d.typeDeps, EDGE_IN_TYPE)
+      add(d.valueDeps, EDGE_IN_VALUE)
+      lists.push([...bits].sort((a, b) => a[0] - b[0]))
+    })
+    const added = lists.reduce((s, l) => s + l.length, 0)
+    const total = this.fwdTarget.length
+    const fwdStart = new Uint32Array(n + 1)
+    fwdStart.set(this.fwdStart)
+    const fwdTarget = new Uint32Array(total + added)
+    fwdTarget.set(this.fwdTarget)
+    const edgeBytes = this.edgeBytes && new Uint8Array(total + added)
+    edgeBytes?.set(this.edgeBytes!)
+    let k = total
+    lists.forEach((l, i) => {
+      for (const [t, b] of l) { fwdTarget[k] = t; if (edgeBytes) edgeBytes[k] = b; k++ }
+      fwdStart[n0 + i + 1] = k
+    })
+    this.names = this.names.concat(decls.map((d) => d.name))
+    this.moduleOf = moduleOf
+    this.fwdStart = fwdStart
+    this.fwdTarget = fwdTarget
+    this.edgeBytes = edgeBytes
+    if (this.flagBytes) { const f = new Uint8Array(n).fill(FLAG_UNKNOWN); f.set(this.flagBytes); this.flagBytes = f }
+    if (this.tacticBits) { const t = new Uint16Array(n); t.set(this.tacticBits); this.tacticBits = t }
+    this.libKinds = decls.map((d) => d.kind)
+    this.libUnresolved = unresolved.size
+    this.size = n
+    this.meta = { ...this.meta, nodes: n, edges: total + added }
+    this.axiomIds = undefined
+    this.buildReverse()
+  }
+
+  /** First library id, or undefined when no library is loaded. */
+  get libraryStart(): number | undefined {
+    return this.libByName ? this.baseSize : undefined
+  }
+
+  /** Distinct names the library referenced that are in neither the store nor the library (other packages, or a different Mathlib). */
+  get libraryUnresolved(): number {
+    return this.libUnresolved
+  }
+
+  /** True for library nodes in the modules of interest (all library nodes when no focus was chosen). */
+  inFocus(id: number): boolean {
+    return this.isLibrary(id) && (!this.libraryFocus || this.libraryFocus.has(this.module(id)))
+  }
+
+  isLibrary(id: number): boolean {
+    return this.libByName !== undefined && id >= this.baseSize
+  }
+
+  /** Declaration kind letter from the extractor (t theorem, d definition, ...), for library nodes. */
+  libraryKind(id: number): string | undefined {
+    return this.isLibrary(id) ? this.libKinds[id - this.baseSize] : undefined
+  }
+
   id(name: string): number | undefined {
+    const lib = this.libByName?.get(name)
+    if (lib !== undefined) return lib
     if (this.ordered()) {
       const i = this.lowerBound(name)
-      return i < this.names.length && this.names[i] === name ? i : undefined
+      return i < this.baseSize && this.names[i] === name ? i : undefined
     }
     if (!this.byName) {
       this.byName = new Map()
-      for (let i = 0; i < this.names.length; i++) this.byName.set(this.names[i], i)
+      for (let i = 0; i < this.baseSize; i++) this.byName.set(this.names[i], i)
     }
     return this.byName.get(name)
   }
@@ -367,18 +471,13 @@ export class LocalGraph {
   }
 
   search(prefix: string, limit = 20): string[] {
+    const out: string[] = []
+    for (let i = this.baseSize; i < this.names.length && out.length < limit; i++) if (this.names[i].startsWith(prefix)) out.push(this.names[i])
     if (!this.ordered()) {
-      const out: string[] = []
-      for (const name of this.names) {
-        if (name.startsWith(prefix)) {
-          out.push(name)
-          if (out.length >= limit) break
-        }
-      }
+      for (let i = 0; i < this.baseSize && out.length < limit; i++) if (this.names[i].startsWith(prefix)) out.push(this.names[i])
       return out
     }
-    const out: string[] = []
-    for (let i = this.lowerBound(prefix); i < this.names.length && out.length < limit; i++) {
+    for (let i = this.lowerBound(prefix); i < this.baseSize && out.length < limit; i++) {
       if (!this.names[i].startsWith(prefix)) break
       out.push(this.names[i])
     }
