@@ -457,7 +457,7 @@ function App() {
 
   const localResult = states.values().next().value?.source === 'local'
 
-  return <div className={`app-shell stage-${stage}`}>
+  return <div className={`app-shell stage-${stage}${stage === 'search' && searchStatus !== 'ready' ? ' landing' : ''}`}>
     <SiteHeader />
 
     <main>
@@ -465,7 +465,6 @@ function App() {
 
       {stage === 'search' && <section className="intro" aria-labelledby="page-title">
         <h1 id="page-title">Leanage <em>explorer.</em></h1>
-        <p>Describe your result of interest.</p>
       </section>}
 
       <section className="workspace" aria-label="Theorem analysis">

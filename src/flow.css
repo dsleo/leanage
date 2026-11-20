@@ -70,3 +70,15 @@ footer nav { display: flex; flex-wrap: wrap; gap: 4px 22px; justify-content: fle
 @media (max-width: 640px) { footer nav { justify-content: flex-start; } }
 .guide-sections section > div { min-width: 0; }
 @media (max-width: 900px) { .guide-sections section { grid-template-columns: minmax(0, 1fr); } }
+
+/* Google-style landing: title and search centred in the viewport, footer pinned at the bottom. */
+.app-shell { display: flex; flex-direction: column; min-height: 100svh; }
+.app-shell > main { flex: 1; }
+.app-shell.landing > main { display: flex; flex-direction: column; justify-content: flex-start; padding-top: 24vh; }
+.app-shell.landing .site-header { visibility: hidden; }
+.app-shell.landing .intro { text-align: center; padding-bottom: 8px; margin: 0 auto; width: 100%; }
+.app-shell.landing .intro h1 { margin-left: auto; margin-right: auto; }
+.app-shell.landing .workspace { background: none; border: 0; }
+.app-shell.landing .workspace-grid { max-width: 760px; }
+.app-shell.landing .main-column { padding-bottom: 0; }
+.app-shell.landing .example-line { justify-content: center; }
