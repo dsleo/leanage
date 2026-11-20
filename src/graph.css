@@ -101,3 +101,6 @@
 .graph-explorer.witness-long .graph-viewport, .graph-explorer.witness-long .graph-inspector { height: 420px; }
 .graph-explorer.expanded.witness-mode .graph-viewport, .graph-explorer.expanded.witness-mode .graph-inspector { height: 100%; }
 @media (max-width: 600px) { .graph-section-head { display: flex; align-items: start; } .graph-explorer.witness-mode .graph-inspector { height: auto; max-height: 220px; } .graph-explorer.witness-long .graph-viewport { height: 420px; } .graph-explorer.expanded.witness-mode .graph-viewport { min-height: 45vh; height: 45vh; } }
+.graph-layout:not(.with-inspector) { grid-template-columns: minmax(0, 1fr); }
+.graph-toolbar-title { flex: 1; }
+.graph-toolbar .graph-search { padding: 0 4px; }

@@ -34,7 +34,7 @@ export function ClosurePanel({ graph, rootName }: { graph: LocalGraph; rootName:
   return <section className="closure-panel" aria-label={`Closure of ${rootName}`}>
     <p className="closure-live" role="status" aria-live="polite">{copied && `Copied ${copied}`}</p>
 
-    <details open className="closure-section">
+    <details className="closure-section">
       <summary><h3>What axioms are used</h3></summary>
       <ScopeControl scope={scope} onChange={setScope} available={graph.hasEdgeTypes} name="axioms-scope" />
       {audit.length === 0

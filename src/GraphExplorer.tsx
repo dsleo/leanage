@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowDownLeft, Eye, Focus, Maximize2, Minus, Network, Play, Plus, Search, X } from 'lucide-react'
+import { ArrowDownLeft, Eye, Focus, Maximize2, Network, Play, Search, X } from 'lucide-react'
 import type { Declaration, Edge, PathStep, Policy, TraversalState } from './domain'
 import { pathTo } from './explorer'
 import { POLICY_LABEL } from './domain'
@@ -75,7 +75,7 @@ function shortName(value: string) {
 }
 
 function GraphView({ state, root, expanded, onExpand, focusRequest, evidencePaths, toolbarExtra }: { toolbarExtra?: ReactNode; state: TraversalState; root: Declaration; expanded: boolean; onExpand: () => void; focusRequest?: { id: string; serial: number }; evidencePaths: PathStep[][] }) {
-  const [selectedId, setSelectedId] = useState(root.id)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [zoom, setZoom] = useState(1)
   const [showFullGraph, setShowFullGraph] = useState(true)
@@ -88,8 +88,7 @@ function GraphView({ state, root, expanded, onExpand, focusRequest, evidencePath
   const verticalWitness = !fullMode && Boolean(firstWitness && (firstWitness.length > 2 || narrow))
   const fullGraph = layout(state)
   const graph = fullMode || !firstWitness ? fullGraph : layoutWitness(firstWitness, state, verticalWitness)
-  const selected = graph.positions.get(selectedId) ?? graph.positions.get(root.id)
-  const selectedName = selected?.declaration.name ?? root.name
+  const selected = selectedId ? graph.positions.get(selectedId) : undefined
   const matches = [...graph.positions.values()].filter((node) => node.declaration.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
   const path: PathStep[] = selected ? pathTo(state, selected.id) : []
   const pathEdges = new Set(path.slice(1).map((step, index) => `${path[index].id}>${step.id}`))
@@ -107,7 +106,7 @@ function GraphView({ state, root, expanded, onExpand, focusRequest, evidencePath
     return () => media.removeEventListener('change', update)
   }, [])
 
-  useEffect(() => { setSelectedId(root.id); setQuery(''); setZoom(1) }, [root.id, state.policy])
+  useEffect(() => { setSelectedId(null); setQuery(''); setZoom(1) }, [root.id, state.policy])
 
   function focus(id: string) {
     setSelectedId(id)
@@ -121,16 +120,17 @@ function GraphView({ state, root, expanded, onExpand, focusRequest, evidencePath
 
   function fitWitness() {
     if (!firstWitness) return
-    const nodes = firstWitness.map((step) => graph.positions.get(step.id)).filter((node): node is Positioned => Boolean(node))
+    // In the full graph, zoom on the dependency being looked for and the last steps leading to it, not the whole path.
+    const nodes = (fullMode ? firstWitness.slice(-3) : firstWitness).map((step) => graph.positions.get(step.id)).filter((node): node is Positioned => Boolean(node))
     const area = viewport.current
     if (!nodes.length || !area) return
     const minX = Math.min(...nodes.map((node) => node.x))
     const maxX = Math.max(...nodes.map((node) => node.x + NODE_WIDTH))
     const minY = Math.min(...nodes.map((node) => node.y))
     const maxY = Math.max(...nodes.map((node) => node.y + NODE_HEIGHT))
-    const nextZoom = 1
+    const pad = 70
+    const nextZoom = fullMode ? Math.max(.3, Math.min(1.3, (area.clientWidth - pad * 2) / (maxX - minX), (area.clientHeight - pad * 2) / (maxY - minY))) : 1
     setZoom(nextZoom)
-    setSelectedId(firstWitness[firstWitness.length - 1].id)
     requestAnimationFrame(() => area.scrollTo({ left: (minX + maxX) / 2 * nextZoom - area.clientWidth / 2, top: (minY + maxY) / 2 * nextZoom - area.clientHeight / 2, behavior: 'smooth' }))
   }
 
@@ -141,45 +141,70 @@ function GraphView({ state, root, expanded, onExpand, focusRequest, evidencePath
     requestAnimationFrame(fitWitness)
   }, [firstWitness?.[firstWitness.length - 1]?.id, state.policy])
 
-  useEffect(() => { requestAnimationFrame(() => { if (showFullGraph) focus(selectedId); else if (firstWitness) fitWitness() }) }, [showFullGraph])
+  useEffect(() => { requestAnimationFrame(() => { if (showFullGraph && selectedId) focus(selectedId); else if (firstWitness) fitWitness() }) }, [showFullGraph])
   useEffect(() => { if (!fullMode && firstWitness) requestAnimationFrame(fitWitness) }, [narrow])
 
   useEffect(() => { if (focusRequest && graph.positions.has(focusRequest.id)) focus(focusRequest.id) }, [focusRequest?.serial, state.policy])
 
+  function resetView() {
+    setSelectedId(null)
+    if (firstWitness) { fitWitness(); return }
+    setZoom(1)
+    viewport.current?.scrollTo({ left: 0, top: 0, behavior: 'smooth' })
+  }
+
+  // Pinch on a trackpad (reported as ctrl+wheel) zooms around the pointer; ordinary two-finger scrolling still pans.
+  const zoomRef = useRef(1)
+  zoomRef.current = zoom
+  useEffect(() => {
+    const area = viewport.current
+    if (!area) return
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return
+      event.preventDefault()
+      const rect = area.getBoundingClientRect()
+      const px = event.clientX - rect.left
+      const py = event.clientY - rect.top
+      const before = zoomRef.current
+      const next = Math.max(.25, Math.min(2.5, before * Math.exp(-event.deltaY * .01)))
+      zoomRef.current = next
+      setZoom(next)
+      requestAnimationFrame(() => { area.scrollLeft = (area.scrollLeft + px) * (next / before) - px; area.scrollTop = (area.scrollTop + py) * (next / before) - py })
+    }
+    area.addEventListener('wheel', onWheel, { passive: false })
+    return () => area.removeEventListener('wheel', onWheel)
+  }, [])
+
+  const moved = useRef(false)
   function panStart(event: React.PointerEvent<SVGSVGElement>) {
     if (event.target !== event.currentTarget) return
     const area = viewport.current
     if (!area) return
+    moved.current = false
     drag.current = { x: event.clientX, y: event.clientY, left: area.scrollLeft, top: area.scrollTop }
     event.currentTarget.setPointerCapture(event.pointerId)
   }
   function panMove(event: React.PointerEvent<SVGSVGElement>) {
     const area = viewport.current
     if (!drag.current || !area) return
+    if (Math.abs(event.clientX - drag.current.x) + Math.abs(event.clientY - drag.current.y) > 4) moved.current = true
     area.scrollLeft = drag.current.left - (event.clientX - drag.current.x)
     area.scrollTop = drag.current.top - (event.clientY - drag.current.y)
   }
 
   return <div className={`graph-explorer ${expanded ? 'expanded' : ''} ${fullMode ? 'full' : 'witness-mode'} ${verticalWitness ? 'witness-long' : ''}`}>
     <div className="graph-toolbar">
-      <div className="graph-toolbar-title">{!fullMode && <strong>Witness path</strong>}</div>
+      <div className="graph-toolbar-title">{fullMode ? <label className="graph-search"><Search size={15} /><span className="sr-only">Search declarations in the graph</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search observed nodes…" /></label> : <strong>Witness path</strong>}</div>
       <div className="graph-toolbar-actions">
         {firstWitness && <button type="button" aria-label={showFullGraph ? 'Show witness path' : 'Show full graph'} title={showFullGraph ? 'Show witness path' : 'Show full graph'} onClick={() => { setShowFullGraph((value) => !value); setZoom(1) }}>{showFullGraph ? <Eye size={16} /> : <Network size={16} />}</button>}
-        {fullMode && <button type="button" aria-label="Zoom out" onClick={() => setZoom((value) => Math.max(.55, Math.round((value - .15) * 100) / 100))}><Minus size={16} /></button>}
-        {fullMode && <span className="graph-zoom">{Math.round(zoom * 100)} %</span>}
-        {fullMode && <button type="button" aria-label="Zoom in" onClick={() => setZoom((value) => Math.min(1.7, Math.round((value + .15) * 100) / 100))}><Plus size={16} /></button>}
-        {fullMode && <button type="button" aria-label="Center on the theorem" onClick={() => focus(root.id)}><Focus size={16} /></button>}
+        {<button type="button" aria-label="Reset view" title="Reset view (double-click the background)" onClick={resetView}><Focus size={16} /></button>}
         {toolbarExtra}
         <button type="button" aria-label={expanded ? 'Exit full screen' : 'View graph full screen'} onClick={onExpand}>{expanded ? <X size={16} /> : <Maximize2 size={16} />}</button>
       </div>
     </div>
-    {fullMode && <div className="graph-utility">
-      <label className="graph-search"><Search size={15} /><span className="sr-only">Search declarations in the graph</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search observed nodes…" /></label>
-      <span className="graph-coverage">{state.completionReason === 'exhausted' ? 'Traversal complete' : state.completionReason === 'witnesses' ? 'Stopped at witness' : state.status === 'running' ? 'Exploring' : state.status === 'limited' ? 'Exploration limited' : state.status === 'error' ? 'Loading interrupted' : 'Partial graph'}</span>
-    </div>}
     {query && <div className="graph-matches" aria-live="polite">{matches.length ? <>{matches.slice(0, 12).map((node) => <button key={node.id} type="button" onClick={() => focus(node.id)}>{node.declaration.name}</button>)}{matches.length > 12 && <span>+ {matches.length - 12} more</span>}</> : <span>No observed declaration matches.</span>}</div>}
-    <div className="graph-layout">
-      {<div className="graph-viewport" ref={viewport} aria-label="Observed dependency graph, scroll to navigate"><svg width={graph.width * zoom} height={graph.height * zoom} viewBox={`0 0 ${graph.width} ${graph.height}`} onPointerDown={panStart} onPointerMove={panMove} onPointerUp={() => { drag.current = null }} onPointerCancel={() => { drag.current = null }}>
+    <div className={`graph-layout ${selected ? 'with-inspector' : ''}`}>
+      {<div className="graph-viewport" ref={viewport} aria-label="Observed dependency graph, scroll to navigate"><svg width={graph.width * zoom} height={graph.height * zoom} viewBox={`0 0 ${graph.width} ${graph.height}`} onPointerDown={panStart} onPointerMove={panMove} onPointerUp={() => { drag.current = null }} onPointerCancel={() => { drag.current = null }} onClick={(event) => { if (event.target === event.currentTarget && !moved.current) setSelectedId(null) }} onDoubleClick={(event) => { if (event.target === event.currentTarget) resetView() }}>
         <defs><marker id="witness-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#7b93ff" /></marker></defs>
         <g className="graph-edges">{state.edges.map((edge: Edge, index) => {
           const from = graph.positions.get(edge.from)
@@ -196,9 +221,9 @@ function GraphView({ state, root, expanded, onExpand, focusRequest, evidencePath
         })}</g>
         <g className="graph-nodes">{[...graph.positions.values()].map((node) => <g key={node.id} role="button" tabIndex={0} aria-label={`${node.declaration.name}, depth ${node.depth}, ${state.visited.has(node.id) ? 'neighborhood loaded' : 'neighborhood pending'}`} className={`${node.id === selected?.id ? 'selected' : ''} ${pathNodes.has(node.id) || evidenceNodes.has(node.id) ? 'on-path' : ''} ${evidenceTargets.has(node.id) ? 'evidence-target' : ''} ${!state.visited.has(node.id) ? 'unexpanded' : ''} ${query && node.declaration.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()) ? 'match' : ''}`} transform={`translate(${node.x}, ${node.y})`} onClick={() => focus(node.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); focus(node.id) } }}><rect width={NODE_WIDTH} height={NODE_HEIGHT} rx="3" /><circle cx="13" cy={NODE_HEIGHT / 2} r="3" /><text x="23" y="20">{shortName(node.declaration.name)}</text><title>{node.declaration.name}</title></g>)}</g>
       </svg></div>}
-      <aside className="graph-inspector" aria-label="Selected declaration">
+      {selected && <aside className="graph-inspector" aria-label="Selected declaration">
         <p className="eyebrow">SELECTED DECLARATION</p>
-        <h3>{selectedName}</h3>
+        <h3>{selected.declaration.name}</h3>
         {selected?.declaration.body && <pre>{selected.declaration.body}</pre>}
         {selected?.declaration.slogan && <details className="graph-summary"><summary>Read declaration summary</summary><p className="graph-slogan">{selected.declaration.slogan}</p></details>}
         {fullMode && <>
@@ -208,9 +233,9 @@ function GraphView({ state, root, expanded, onExpand, focusRequest, evidencePath
           {path.length > 1 && <div className="graph-path"><strong>Path from the theorem</strong><ol>{path.map((step) => <li key={step.id}><button onClick={() => focus(step.id)}>{step.name}</button>{step.via && <code>{step.via}</code>}</li>)}</ol></div>}
         </>}
         {safeSourceUrl(selected?.declaration.source) && <a href={safeSourceUrl(selected?.declaration.source)} target="_blank" rel="noreferrer">View source ↗</a>}
-      </aside>
+      </aside>}
     </div>
-    <p className="graph-caption">{fullMode ? <>Observed <code>proof</code>{state.policy === 'body' ? ' and def' : ''} edges from loaded neighborhoods. Pending nodes may have more dependencies.</> : <>Each arrow is a direct dependency. Select a node to read its declaration.</>}</p>
+    <p className="graph-caption">{fullMode ? <>Observed <code>proof</code>{state.policy === 'body' ? ' and def' : ''} edges from loaded neighborhoods. Pending nodes may have more dependencies.{state.completionReason !== 'exhausted' && ` ${state.completionReason === 'witnesses' ? 'Stopped at the first match.' : state.status === 'running' ? 'Still exploring.' : state.status === 'limited' ? 'Exploration limited.' : state.status === 'error' ? 'Loading interrupted.' : 'Partial graph.'}`}</> : <>Each arrow is a direct dependency. Select a node to read its declaration.</>}</p>
   </div>
 }
 
