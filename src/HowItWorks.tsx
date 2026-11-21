@@ -32,7 +32,7 @@ export default function HowItWorks() {
           <div>
             <div className="guide-chain" aria-hidden="true"><span>Search</span><span>→</span><span>Confirm</span><span>→</span><span>Choose what to detect</span><span>→</span><span>Answer</span></div>
             <ol className="guide-list">
-              <li><strong>Search.</strong> Type a Lean name, or describe the result in words. A name is looked up directly; a description is sent to TheoremGraph, which returns close Mathlib statements.</li>
+              <li><strong>Search.</strong> Type a Lean name, or describe the result in words. A name is looked up directly in the store, in Mathlib or TauCeti; a description is sent to TheoremGraph, which returns close Mathlib statements.</li>
               <li><strong>Confirm.</strong> Search by description is approximate, so you pick the exact declaration you mean.</li>
               <li><strong>Choose what to detect.</strong> Pick a method (induction, case analysis, proof by contradiction, the axiom of choice) or name a result the proof should depend on, such as <code>Nat.zero_add</code>.</li>
               <li><strong>Answer.</strong> For each question you get a label, one path through the dependencies, and the closure panel.</li>
@@ -44,10 +44,10 @@ export default function HowItWorks() {
         <section aria-labelledby="g-data">
           <div><h2 id="g-data">The data</h2></div>
           <div>
-            <p>Dependencies come from a local store built from the open dataset <code>mathlib-const-dep</code>: <strong>807,065 declarations</strong> of Mathlib at commit <code>fc4f59e</code> (Lean v4.36.0), with every reference between them. The store is a static copy loaded into your browser; closures are computed there, not on a server.</p>
-            <p>Same-commit tactic information comes from <code>mathlib-tactics</code>, matched to declarations by module and source position. TheoremGraph is used only for search by description and for statements shown beside results; it does not decide any dependency answer when the store has the declaration.</p>
-            <p>Everything is pinned to that one Mathlib commit. A newer Mathlib may differ, and the store is updated by hand.</p>
-            <p>The <strong>Mathlib + TauCeti</strong> switch uses a second store, extracted with Lean from the Mathlib commit that <Ext href="https://github.com/TauCetiProject/TauCeti">TauCeti</Ext> pins (<code>31ce06e</code>, Lean v4.37.0-rc1), with the TauCeti declarations layered on top. It has no tactic records, and TauCeti is searched by Lean name only, because TheoremGraph does not index it. Results carry a Mathlib or TauCeti tag, and TauCeti links go to its own documentation.</p>
+            <p>Dependencies come from one local store, extracted with Lean: <strong>1.65 million declarations</strong> and 73.6 million references between them, covering Lean core, Batteries, Mathlib at commit <code>31ce06e</code> (Lean v4.37.0-rc1) and <Ext href="https://github.com/TauCetiProject/TauCeti">TauCeti</Ext> at commit <code>8794ab3</code>. The store is a static copy loaded into your browser; closures are computed there, not on a server. Every search and every answer runs over all of it at once.</p>
+            <p><strong>Mathlib and TauCeti.</strong> Mathlib is the large human-written library. TauCeti is an AI-written Lean library built on top of Mathlib: its declarations may depend on Mathlib, and Mathlib never depends on TauCeti. A result carries a Mathlib, TauCeti, Lean core or Batteries tag, and its documentation link goes to that library's own docs. The practical differences are these. Mathlib is searchable in plain English, through TheoremGraph, and has tactic evidence (see below). TauCeti is found by its Lean name only, for example a name copied from its docs, and has no tactic records. Dependency paths and axiom answers behave the same in both, and a TauCeti result can lead straight into Mathlib.</p>
+            <p>Mathlib tactic information comes from <code>mathlib-tactics</code>, matched to declarations by module and source position. TheoremGraph is used only for search by description and for statements shown beside results; it does not decide any dependency answer when the store has the declaration.</p>
+            <p>Everything is pinned to those two commits. A newer version may differ, and the store is updated by hand.</p>
           </div>
         </section>
 
@@ -91,7 +91,7 @@ export default function HowItWorks() {
               <li><strong>Tactics are about 97% complete.</strong> Matching source to declarations misses about 3% of tactics. Nothing was wrongly attached in our keyword check.</li>
               <li><strong>Scoped instances are not flagged.</strong> Instances, projections and coercions can be hidden as boilerplate, using flags extracted from Lean, but scoped instances are not covered.</li>
               <li><strong>Generated names.</strong> Lean creates helper declarations (names containing parts like <code>_proof_1</code> or <code>match_1</code>). They are hidden by default and folded into the declaration that owns them, but they stay in the store because real dependencies sometimes pass through them.</li>
-              <li><strong>One Mathlib commit.</strong> Results say nothing about other versions. If your result is not in Mathlib, or its name changed, it cannot be analysed.</li>
+              <li><strong>Two pinned commits.</strong> Results say nothing about other versions of Mathlib or TauCeti. If your result is not in the store, or its name changed, it cannot be analysed.</li>
             </ul>
           </div>
         </section>
@@ -100,7 +100,7 @@ export default function HowItWorks() {
           <div><h2 id="g-closure">Closure panel and links</h2></div>
           <div>
             <p>The closure panel lists the axioms reached with one path to each, for the whole proof or for the statement only. The download icon next to the graph exports the full dependency closure as CSV, JSON or Graphviz DOT, without compiler-generated names. The command line offers filters, reverse dependencies and the instance and coercion filter.</p>
-            <p>Any declaration has a permanent link of the form <code>/?name=Nat.add_comm&amp;commit=fc4f59e</code>. The commit records which Mathlib the link was made against, so a different store can tell you the answer may differ.</p>
+            <p>Any declaration has a permanent link of the form <code>/?name=Nat.add_comm&amp;commit=31ce06e</code>. The commit records which Mathlib the link was made against, so a different store can tell you the answer may differ.</p>
           </div>
         </section>
 

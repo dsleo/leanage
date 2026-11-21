@@ -4,7 +4,6 @@ import type { Candidate, Declaration, Objective } from './domain'
 import { MathText } from './MathText'
 import { DeclLinks } from './DeclLinks'
 import { LibraryTag } from './LibraryTag'
-import { MODE_LABEL, type Mode } from './libraries'
 import { CandidateCard } from './CandidateSection'
 import { SUGGESTIONS } from './objectives'
 
@@ -20,16 +19,10 @@ interface SearchProps {
   seconds: number
   notice: string
   error: string
-  mode: Mode
-  onModeChange: (mode: Mode) => void
 }
 
-export function SearchSection({ query, onQueryChange, onSearch, onCancel, inputRef, status, seconds, notice, error, mode, onModeChange }: SearchProps) {
+export function SearchSection({ query, onQueryChange, onSearch, onCancel, inputRef, status, seconds, notice, error }: SearchProps) {
   return <section className="form-section search-stage" aria-label="Result of interest">
-    <div className="library-switch" role="group" aria-label="Library to search">
-      {(['mathlib', 'tauceti'] as Mode[]).map((value) => <button key={value} type="button" aria-pressed={mode === value} onClick={() => onModeChange(value)}>{MODE_LABEL[value]}</button>)}
-    </div>
-    {mode === 'tauceti' && <p className="library-note">TauCeti is searched by Lean name for now (for example a name copied from its docs). Plain-English search covers Mathlib only.</p>}
     <form className="search-form" onSubmit={(event) => { event.preventDefault(); onSearch() }}>
       <Search size={19} aria-hidden="true" />
       <input ref={inputRef} aria-label="Lean name or mathematical description" value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="e.g. a prime dividing a product, or Nat.add_comm" />

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseMode, tagOf } from './libraries'
+import { tagOf } from './libraries'
 
 describe('library tags', () => {
   it('tags Mathlib, TauCeti, Lean core and Batteries modules', () => {
@@ -14,11 +14,5 @@ describe('library tags', () => {
     expect(tagOf(undefined, 'Mathlib_v427')).toBe('Mathlib')
     expect(tagOf(undefined, 'arXiv:1234')).toBeNull()
     expect(tagOf(undefined, undefined)).toBeNull()
-  })
-  it('reads the library switch from the URL', () => {
-    expect(parseMode('tauceti')).toBe('tauceti')
-    expect(parseMode('mathlib')).toBe('mathlib')
-    expect(parseMode(null)).toBe('mathlib')
-    expect(parseMode('anything')).toBe('mathlib')
   })
 })

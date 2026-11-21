@@ -375,8 +375,3 @@ footer span:first-child { color: var(--ink); }
 /* Library tags and the library switch */
 .lib-tag { display: inline-block; padding: 1px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; line-height: 1.5; vertical-align: middle; }
 .lib-tag.lib-tauceti { border-color: var(--accent); color: var(--accent); }
-.library-switch { display: inline-flex; margin: 0 0 10px; border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
-.library-switch button { border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 13px; padding: 4px 12px; border-radius: 999px; cursor: pointer; }
-.library-switch button[aria-pressed="true"] { background: var(--accent); color: var(--paper-light); }
-.library-switch button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.library-note { margin: 6px 0 0; color: var(--muted); font-size: 12.5px; }

@@ -3,7 +3,7 @@ import { ApiError, TheoremGraphClient } from './api'
 import type { Candidate, Declaration, Objective, Policy, TraversalState } from './domain'
 import { Explorer } from './explorer'
 import { loadLocalGraph, type LocalGraph } from './localGraph'
-import { STORE_URLS, parseMode, tagOf, type Mode } from './libraries'
+import { STORE_URL, tagOf } from './libraries'
 import { localStates } from './localExplorer'
 import { isLeanNameLike, lookupName, type LocalMatch } from './localLookup'
 import { loadMethodIndex, type MethodIndex } from './methods'
@@ -22,10 +22,9 @@ const client = new TheoremGraphClient()
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Name permalinks carry the Mathlib commit they were made against, so a different store can say so.
-function setDeclarationParams(url: URL, declaration: { id: string; name: string }, commit?: string, mode?: Mode) {
+function setDeclarationParams(url: URL, declaration: { id: string; name: string }, commit?: string) {
   if (UUID.test(declaration.id)) { url.searchParams.set('id', declaration.id); return }
   url.searchParams.set('name', declaration.name)
-  if (mode === 'tauceti') url.searchParams.set('lib', 'tauceti')
   if (commit) url.searchParams.set('commit', commit.slice(0, 7))
 }
 
@@ -34,7 +33,7 @@ function initialUrl() {
   const query = params.get('q') ?? ''
   const raw = params.getAll('detect')
   const objectives = raw.map(interpretObjective).filter((value): value is Objective => Boolean(value))
-  return { query, objectives, linkedId: params.get('id'), linkedName: params.get('name'), linkedCommit: params.get('commit'), mode: parseMode(params.get('lib')) }
+  return { query, objectives, linkedId: params.get('id'), linkedName: params.get('name'), linkedCommit: params.get('commit') }
 }
 
 const initial = initialUrl()
@@ -70,13 +69,10 @@ function App() {
   const [indexStatus, setIndexStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const [indexError, setIndexError] = useState('')
   const [resolver, setResolver] = useState<Resolver | null>(null)
-  const [mode, setMode] = useState<Mode>(initial.mode)
-  const modeRef = useRef<Mode>(initial.mode)
   const [storeStatus, setStoreStatus] = useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
   const [storeNote, setStoreNote] = useState('')
   const localGraph = useRef<LocalGraph | null>(null)
-  const storePromises = useRef<Partial<Record<Mode, Promise<LocalGraph | null>>>>({})
-  const graphs = useRef<Partial<Record<Mode, LocalGraph>>>({})
+  const storePromise = useRef<Promise<LocalGraph | null> | null>(null)
   const [storeMiss, setStoreMiss] = useState<LocalMatch[] | null>(null)
   const [apiPending, setApiPending] = useState(false)
   const searchController = useRef<AbortController | null>(null)
@@ -87,54 +83,28 @@ function App() {
   const loggedTraversals = useRef(new Map<Policy, string>())
   const explorer = useRef(new Explorer(client, setStates))
 
-  // One store per mode: Mathlib alone, or Mathlib at TauCeti's pin with the TauCeti declarations in the same graph.
-  const loadStore = (m: Mode) => loadLocalGraph(STORE_URLS[m])
-
-  function ensureStore(m: Mode = modeRef.current): Promise<LocalGraph | null> {
-    const ready = graphs.current[m]
-    if (ready) return Promise.resolve(ready)
-    if (!storePromises.current[m]) {
-      if (m === modeRef.current) setStoreStatus('loading')
-      storePromises.current[m] = loadStore(m).then((graph) => {
-        graphs.current[m] = graph
-        if (m === modeRef.current) { localGraph.current = graph; setStoreStatus('ready') }
+  // One store for everything: Mathlib at TauCeti's pin, with the TauCeti declarations in the same graph.
+  function ensureStore(): Promise<LocalGraph | null> {
+    if (localGraph.current) return Promise.resolve(localGraph.current)
+    if (!storePromise.current) {
+      setStoreStatus('loading')
+      storePromise.current = loadLocalGraph(STORE_URL).then((graph) => {
+        localGraph.current = graph
+        setStoreStatus('ready')
         return graph
       }).catch((error) => {
-        debug('local store unavailable', { mode: m, error: formatError(error) })
-        if (m === modeRef.current) setStoreStatus('unavailable')
-        delete storePromises.current[m]
+        debug('local store unavailable', { error: formatError(error) })
+        setStoreStatus('unavailable')
+        storePromise.current = null
         return null
       })
     }
-    return storePromises.current[m]!
+    return storePromise.current
   }
 
   // The source label names the library and the commit the store was built from, as Mathlib@abc1234 or TauCeti.
   function labelFor(graph: LocalGraph, module?: string) {
     return tagOf(module) === 'TauCeti' ? 'TauCeti' : `Mathlib@${graph.meta.mathlib_commit?.slice(0, 7) ?? 'local'}`
-  }
-
-  function changeMode(next: Mode) {
-    if (next === mode) return
-    searchController.current?.abort()
-    searchSerial.current++
-    dismissResolver()
-    explorer.current.cancel()
-    modeRef.current = next
-    localGraph.current = graphs.current[next] ?? null
-    setMode(next)
-    setStoreStatus(graphs.current[next] ? 'ready' : 'idle')
-    setStoreMiss(null)
-    setConfirmed(null)
-    setIncludeDefinitions(false)
-    setAnalysisStarted(false)
-    setStates(new Map())
-    setCandidates([])
-    setApiPending(false)
-    setSearchError('')
-    setSearchNotice('')
-    setSearchStatus('idle')
-    void ensureStore(next)
   }
 
   // A Lean name needs no API: the store can offer it directly, and still can when the API is down or does not know the name.
@@ -160,11 +130,10 @@ function App() {
   const applyState = (url: URL) => {
     for (const key of ['id', 'name', 'commit', 'detect', 'run', 'q', 'lib']) url.searchParams.delete(key)
     if (confirmed) {
-      setDeclarationParams(url, confirmed, localGraph.current?.meta.mathlib_commit, mode)
+      setDeclarationParams(url, confirmed, localGraph.current?.meta.mathlib_commit)
       objectives.forEach((objective) => url.searchParams.append('detect', objective.original))
       if (analysisStarted) url.searchParams.set('run', '1')
-    } else if (searchedQuery && searchStatus === 'ready') { url.searchParams.set('q', searchedQuery); if (mode === 'tauceti') url.searchParams.set('lib', 'tauceti') }
-    else if (mode === 'tauceti') url.searchParams.set('lib', 'tauceti')
+    } else if (searchedQuery && searchStatus === 'ready') { url.searchParams.set('q', searchedQuery) }
   }
   const linkedStart = useRef(Boolean(initial.linkedId || initial.linkedName))
 
@@ -208,7 +177,7 @@ function App() {
     const url = new URL(window.location.href)
     applyState(url)
     window.history.replaceState(window.history.state, '', url)
-  }, [confirmed?.id, searchStatus, searchedQuery, objectives, analysisStarted, mode])
+  }, [confirmed?.id, searchStatus, searchedQuery, objectives, analysisStarted])
 
   // Restore the state a reload or shared link describes: re-run the search, or the analysis for a linked result.
   const autoRun = useRef(new URLSearchParams(window.location.search).get('run') === '1')
@@ -404,16 +373,6 @@ function App() {
     const controller = new AbortController()
     searchController.current = controller
     const serial = ++searchSerial.current
-    // TauCeti is not in TheoremGraph: only Lean names are searched there, from the local store.
-    if (modeRef.current === 'tauceti') {
-      if (!isLeanNameLike(searchQuery)) { setSearchStatus('idle'); setSearchNotice('TauCeti is searched by Lean name for now. Switch to Mathlib for a plain-English search.'); return }
-      const items = await localCandidates(searchQuery)
-      if (serial !== searchSerial.current) return
-      if (!items.length) { setSearchStatus('empty'); return }
-      setCandidates(items)
-      setSearchStatus('ready')
-      return
-    }
     const started = performance.now()
     const local = localCandidates(searchQuery)
     // A Lean name is answered from the local store at once; TheoremGraph results join the list when they arrive.
@@ -453,10 +412,21 @@ function App() {
     setSearchNotice('Search cancelled. Your query is still here.')
   }
 
+  // TheoremGraph results carry no module; the store knows it, which gives the docs link.
+  function moduleOf(name: string) {
+    const g = localGraph.current
+    const i = g?.id(name)
+    return g && i !== undefined ? g.module(i) : undefined
+  }
+
+  useEffect(() => {
+    if (storeStatus === 'ready' && confirmed && !confirmed.module) { const module = moduleOf(confirmed.name); if (module) setConfirmed({ ...confirmed, module }) }
+  }, [storeStatus, confirmed])
+
   function confirm(candidate: Candidate) {
     if (candidate.loading || candidate.error) return
     dismissResolver()
-    const declaration: Declaration = { id: candidate.id, name: candidate.name, kind: candidate.kind, body: candidate.body, slogan: candidate.slogan, source: candidate.source, sourceLabel: candidate.sourceLabel, module: candidate.module }
+    const declaration: Declaration = { id: candidate.id, name: candidate.name, kind: candidate.kind, body: candidate.body, slogan: candidate.slogan, source: candidate.source, sourceLabel: candidate.sourceLabel, module: candidate.module ?? moduleOf(candidate.name) }
     setConfirmed(declaration)
     setIncludeDefinitions(false)
     setAnalysisStarted(false)
@@ -530,7 +500,7 @@ function App() {
         <div className="workspace-grid">
           <div className="main-column">
             {stage === 'search' && <>
-              <SearchSection query={query} onQueryChange={setQuery} onSearch={() => void search()} onCancel={cancelSearch} inputRef={searchInput} status={searchStatus} seconds={searchSeconds} notice={searchNotice} error={searchError} mode={mode} onModeChange={changeMode} />
+              <SearchSection query={query} onQueryChange={setQuery} onSearch={() => void search()} onCancel={cancelSearch} inputRef={searchInput} status={searchStatus} seconds={searchSeconds} notice={searchNotice} error={searchError} />
               {searchStatus === 'ready' && <CandidateSection candidates={candidates} visible={visibleResults} visibleCount={visibleCandidates} query={searchedQuery} onConfirm={confirm} onShowMore={showMoreCandidates} pending={apiPending} />}
             </>}
 
