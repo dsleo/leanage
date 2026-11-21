@@ -59,9 +59,7 @@ The [method validation record](docs/feasibility/method-validation.md) contains s
 
 ## Store hosting
 
-The app loads the store from [dsleo/leanage-mathlib-store](https://huggingface.co/datasets/dsleo/leanage-mathlib-store) on Hugging Face, pinned to one revision (`STORE_URL` in `src/App.tsx`). Set `VITE_STORE_URL` (for example `/store`) to use a local copy. After re-ingesting for a new Mathlib commit, upload with `hf upload dsleo/leanage-mathlib-store <dir> . --repo-type dataset` and update the pinned revision. Updates are manual.
-
-The **Mathlib + TauCeti** switch loads a second store, [dsleo/leanage-tauceti-store](https://huggingface.co/datasets/dsleo/leanage-tauceti-store): Mathlib at the commit [TauCeti](https://github.com/TauCetiProject/TauCeti) pins, with the TauCeti declarations in the same graph (`STORE_URLS` in `src/libraries.ts`, override with `VITE_TAUCETI_STORE_URL`). It is extracted with Lean, not downloaded, because `mathlib-const-dep` has no shards for that commit: `scripts/extract_env.lean` (Mathlib), `scripts/extract_library_stream.lean` (TauCeti, one module at a time, since all 34,759 modules cannot be imported at once) and `scripts/ingest_env_tsv.py` (merge into the store format), checked with `scripts/verify_store_axioms.py`. TauCeti is searched by Lean name only for now (plain-English search: [#2](https://github.com/dsleo/leanage/issues/2)).
+The app and the CLI load one store, [dsleo/leanage-tauceti-store](https://huggingface.co/datasets/dsleo/leanage-tauceti-store) on Hugging Face, pinned to one revision (`STORE_URL` in `src/libraries.ts`, `DEFAULT_STORE` in `cli/store.ts`; override with `VITE_TAUCETI_STORE_URL` or `--store`). It holds Lean core, Batteries, Mathlib at the commit [TauCeti](https://github.com/TauCetiProject/TauCeti) pins, and the TauCeti declarations, in one graph. It is extracted with Lean (see `docs/`), not downloaded from a dataset, so it has no tactic records. After re-extracting, upload with `hf upload` and update the pin in both places.
 
 ## Command line
 

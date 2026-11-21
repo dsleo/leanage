@@ -7,13 +7,28 @@ npx leanage axioms Nat.add_comm
 npx leanage deps|rdeps <name> [--filter 'Topology.* -Classical.*'] [--no-generated] [--no-boilerplate] [--format text|json|csv|dot]
 npx leanage path <from> <to>
 npx leanage check <name> --forbid Classical.choice
+npx leanage explore            # interactive: confirm a result of interest, then give a target (witness path) or none (axioms, closure size)
 ```
+
+### Your own library on top of Mathlib
+
+Run these in a Lake project that builds against Mathlib (the same Mathlib commit as the store; a mismatch only warns). Lean must be installed, because `index` reads the compiled files.
+
+```
+npx leanage index .                       # extract your declarations' dependencies with Lean -> .leanage/library.tsv
+npx leanage libs --lib .                  # your theorems and the axioms each reaches (sorryAx = unfinished)
+npx leanage check MyLib.main --forbid sorryAx --lib .
+npx leanage explore --lib .
+npx leanage report --lib .                # one self-contained HTML page: pick a result, name a target, get the answer, graph and closure
+```
+
+Every command accepts `--lib <project>` and then sees your library and Mathlib as one graph. Nothing leaves your machine.
 
 `--json` is short for `--format json`. `--forbid` is repeatable and accepts a `Pkg.*` prefix.
 
 ## Store
 
-The graph comes from a pinned revision of the Hugging Face dataset [dsleo/leanage-mathlib-store](https://huggingface.co/datasets/dsleo/leanage-mathlib-store), downloaded once into `~/.cache/leanage`. Override it with `--store <dir-or-url>` or the `LEANAGE_STORE` environment variable (a local directory or an https URL of a store).
+The graph comes from a pinned revision of the Hugging Face dataset [dsleo/leanage-tauceti-store](https://huggingface.co/datasets/dsleo/leanage-tauceti-store) (Lean core, Batteries, Mathlib and TauCeti; about 80 MB, downloaded once into `~/.cache/leanage`). Override it with `--store <dir-or-url>` or the `LEANAGE_STORE` environment variable (a local directory or an https URL of a store).
 
 ## Exit codes
 
@@ -35,10 +50,10 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       # Fails the job (exit 1) if the theorem depends on Classical.choice; exit 2 if the name is unknown.
-      - run: npx --yes leanage@0.1.0 check MyProject.main_theorem --forbid Classical.choice
+      - run: npx --yes leanage@0.2.0 check MyProject.main_theorem --forbid Classical.choice
 ```
 
-Pin the version so the check does not change under you. The check runs against the Mathlib snapshot in the store, so it covers Mathlib declarations, not your own project's.
+Pin the version so the check does not change under you. Without `--lib` the check runs against the store, so it covers Mathlib and TauCeti declarations. To check your own project, build it, run `npx leanage index .` and add `--lib .`.
 
 ## License
 

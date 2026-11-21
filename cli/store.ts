@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto'
 import { gunzipSync } from 'node:zlib'
 import { LocalGraph, type EdgeTypesLegend, type FlagsLegend, type StoreMeta } from '../src/localGraph'
 
-export const DEFAULT_STORE = 'https://huggingface.co/datasets/dsleo/leanage-mathlib-store/resolve/d530ba8562c45508109e9bae033f2e08c760c218'
+export const DEFAULT_STORE = 'https://huggingface.co/datasets/dsleo/leanage-tauceti-store/resolve/eff464ac66d0408149dca4ff629effc128102dc7' // same store as the webapp: Mathlib 31ce06e + TauCeti
 const FILES = ['names.txt', 'modules.txt', 'node_module.u32', 'degrees.vbyte', 'targets.vbyte', 'meta.json']
 
 const unzip = (b: Buffer): Buffer => (b.length > 1 && b[0] === 0x1f && b[1] === 0x8b ? gunzipSync(b) : b)
