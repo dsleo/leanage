@@ -3,6 +3,7 @@ import { parseArgs } from 'node:util'
 import { axiomsCmd, checkCmd, closureCmd, defaultOptions, libsCmd, pathCmd, type Options, type Result } from './commands'
 import { DEFAULT_STORE, loadStore } from './store'
 import { indexLibrary, loadLibrary } from './library'
+import { explore } from './explore'
 import { buildReport, renderReport } from './report'
 import { writeFileSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
@@ -16,6 +17,7 @@ const USAGE = `leanage <command> [options]
   check <name> --forbid X   exit 1 if the closure reaches X (repeatable; 'Pkg.*' prefix allowed)
   index <project>           extract your library's dependencies with Lean (project must be built); writes <project>/.leanage/library.tsv
   libs --lib <project>      list your library's theorems with the axioms each reaches
+  explore                   interactive: search and confirm a result of interest, then ask for axioms or the path to a target (works with --lib)
   report --lib <project>    write a self-contained HTML report (health, module graph, per-declaration witness paths); --out <file>
 
 options:
@@ -56,8 +58,8 @@ export async function main(argv: string[]): Promise<Result> {
   if (values.scope !== undefined && !['statement', 'proof'].includes(values.scope)) return { out: '', err: `Unknown scope: ${values.scope}\n`, code: 2 }
   if (values.scope && !['axioms', 'deps', 'check', 'libs'].includes(cmd)) return { out: '', err: '--scope applies to axioms, deps and check\n', code: 2 }
   o.scope = values.scope as Options['scope']
-  const need = cmd === 'path' ? 2 : cmd === 'libs' || cmd === 'report' ? 0 : 1
-  if (!['axioms', 'deps', 'rdeps', 'path', 'check', 'index', 'libs', 'report'].includes(cmd) || args.length !== need) return { out: '', err: USAGE, code: 2 }
+  const need = cmd === 'path' ? 2 : cmd === 'libs' || cmd === 'report' || cmd === 'explore' ? 0 : 1
+  if (!['axioms', 'deps', 'rdeps', 'path', 'check', 'index', 'libs', 'report', 'explore'].includes(cmd) || args.length !== need) return { out: '', err: USAGE, code: 2 }
   if (cmd === 'index') {
     const r = indexLibrary(args[0], values.dir)
     return r.err ? { out: '', err: r.err, code: 2 } : { out: `Indexed ${r.modules} modules${r.focus ? ` (${r.focus} of interest)` : ''} into ${r.file}\n`, err: '', code: 0 }
@@ -69,6 +71,7 @@ export async function main(argv: string[]): Promise<Result> {
   }
   if (o.noBoilerplate && !graph.hasFlags) return { out: '', err: '--no-boilerplate needs a store with flags.u8, and this one has none\n', code: 2 }
   if (o.scope === 'statement' && !graph.hasEdgeTypes) return { out: '', err: '--scope statement needs a store with edgetypes.u8, and this one has none\n', code: 2 }
+  if (cmd === 'explore') { await explore(graph, o, process.stdin, process.stdout); return { out: '', err: warn, code: 0 } }
   if (cmd === 'report') {
     if (!values.lib) return { out: '', err: 'report needs --lib <project>\n', code: 2 }
     const file = resolve(values.out ?? (values.lib.endsWith('.tsv') ? 'leanage-report.html' : `${values.lib}/.leanage/report.html`))

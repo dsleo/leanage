@@ -4,6 +4,8 @@ import { gzipSync } from 'node:zlib'
 import { LocalGraph } from '../src/localGraph'
 import { axiomsCmd, checkCmd, closureCmd, defaultOptions, libsCmd, pathCmd } from './commands'
 import { loadStore } from './store'
+import { explore } from './explore'
+import { Readable, Writable } from 'node:stream'
 import { buildReport, renderReport } from './report'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -149,5 +151,16 @@ describe('library layer', () => {
     expect(h.flagsOf(h.id('Lib.old')!)).toBeNull()
     expect(h.libraryLine(h.id('Lib.inst')!)).toBe(7)
     expect(h.libraryLine(0)).toBeUndefined()
+  })
+})
+
+describe('explore', () => {
+  it('confirms a result, then answers with and without a target', async () => {
+    let out = ''
+    const sink = new Writable({ write(c, _e, cb) { out += c; cb() } })
+    await explore(g, o, Readable.from(['A.thm\n', '\n', 'Classical.choice\n', ':quit\n']), sink)
+    expect(out).toContain('Result of interest: A.thm')
+    expect(out).toContain('Classical.choice')
+    expect(out).toContain('A.thm -> A.lem -> Classical.choice')
   })
 })
