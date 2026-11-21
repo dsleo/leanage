@@ -51,7 +51,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       # Fails the job (exit 1) if the theorem depends on Classical.choice; exit 2 if the name is unknown.
-      - run: npx --yes @dsleo/leanage@0.2.0 check MyProject.main_theorem --forbid Classical.choice
+      - run: npx --yes @dsleo/leanage@0.2.1 check MyProject.main_theorem --forbid Classical.choice
 ```
 
 Pin the version so the check does not change under you. Without `--lib` the check runs against the store, so it covers Mathlib and TauCeti declarations. To check your own project, build it, run `leanage index .` and add `--lib .`.

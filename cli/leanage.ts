@@ -18,7 +18,7 @@ const USAGE = `leanage <command> [options]
   index <project>           extract your library's dependencies with Lean (project must be built); writes <project>/.leanage/library.tsv
   libs --lib <project>      list your library's theorems with the axioms each reaches
   explore                   interactive: search and confirm a result of interest, then ask for axioms or the path to a target (works with --lib)
-  report --lib <project>    write a self-contained HTML report (health, module graph, per-declaration witness paths); --out <file>
+  report --lib <project>    write one self-contained HTML page like the webapp: pick a result of interest, a target or none, get the answer, graph and closure; --out <file>
 
 options:
   --lib <project|file.tsv>  put your library on top of Mathlib: every command then sees both layers (same Mathlib commit as the store)
