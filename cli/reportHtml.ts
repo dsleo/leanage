@@ -72,9 +72,64 @@ details.sec{border-bottom:1px solid var(--line);padding:4px 0 14px}details.sec>s
 .rows div:last-child{border-bottom:0}.rows .n{font:12px 'CMU Typewriter',monospace;color:var(--accent);background:none;border:0;padding:4px 0;text-align:left;overflow-wrap:anywhere}.rows .d{color:var(--muted);white-space:nowrap}
 .rows details{border-bottom:1px solid var(--line)}.rows summary{cursor:pointer;display:flex;justify-content:space-between;padding:6px 10px;font:12px 'CMU Typewriter',monospace}
 .rows details div{padding-left:22px}
-.graph svg{width:100%;background:var(--panel);border:1px solid var(--line)}svg text{font:10px 'CMU Typewriter',monospace;fill:var(--ink);pointer-events:none}
-svg line{stroke:var(--line);stroke-width:1}svg circle{cursor:pointer;stroke:var(--paper);stroke-width:1.5}
-.more{margin-top:10px;font-size:12px;color:var(--muted)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.answer-stage{margin-top:6px}
+.answer-card{padding:24px}.answer-head h3{font:500 25px/1.1 'CMU Serif',serif;letter-spacing:-.02em;margin:8px 0 0}
+.status-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;white-space:nowrap;font-size:10px;font-weight:700;letter-spacing:.035em}
+.status-pill.positive{color:var(--ok);background:var(--okbg)}.status-pill.pending{color:var(--accent);background:var(--wash)}.status-pill.neutral{color:var(--muted);background:var(--chip)}.status-pill.negative{color:var(--warn);background:var(--warnbg)}
+.answer-note{font:17px/1.4 'CMU Serif',serif;color:var(--muted);margin:18px 0}
+.witness{margin-top:14px;border-left:3px solid var(--accent);background:var(--chip);padding:14px}
+.story-headline{font:500 19px/1.35 'CMU Serif',serif;margin:0 0 4px;max-width:60ch}
+.story-step{display:grid;gap:2px;padding:4px 0;min-width:0}.story-statement{margin-left:23px;color:var(--muted);font-size:12px}
+.path-node{margin-left:0;font:12px 'CMU Typewriter',monospace;overflow-wrap:anywhere}.edge-type{margin-right:8px;color:var(--muted);font:12px 'CMU Typewriter',monospace}
+.fine-print{font-size:12px;color:var(--muted);margin:14px 0 0}
+.full-detail{margin-top:24px;border:1px solid var(--line);background:var(--panel)}
+.full-detail>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;min-height:56px}
+.full-detail>summary::-webkit-details-marker{display:none}.full-detail>summary:hover{background:var(--wash)}
+.full-detail-text{display:grid;gap:2px;min-width:0;flex:1}.full-detail-text strong{font-size:14px}.full-detail-text small{font-size:12px;color:var(--muted)}
+.full-detail-chevron{color:var(--muted);transition:transform .2s}.full-detail:not([open]) .full-detail-chevron{transform:rotate(-90deg)}
+.full-detail .closure{margin:0;padding:16px;border-top:1px solid var(--line)}.full-detail .closure h2{font-size:24px;margin-bottom:10px}
+#gx{padding:16px 16px 0}
+.graph-explorer{border:1px solid #2c2f36;background:#101319;color:#dadce1;min-width:0;box-shadow:5px 5px 0 var(--line)}
+.graph-explorer.expanded{position:fixed;inset:18px;z-index:50;display:flex;flex-direction:column;box-shadow:0 16px 60px #101114b3}
+.graph-toolbar{min-height:54px;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid #383d46}
+.graph-toolbar-title{display:flex;align-items:baseline;gap:12px;min-width:0;flex:1}.graph-toolbar-title strong{color:#d8def1;font-size:11px}
+.graph-toolbar-actions{display:flex;align-items:center;gap:3px}
+.graph-toolbar-actions button{min-height:40px;min-width:40px;padding:0 9px;display:inline-flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;color:#577ae4}
+.graph-toolbar-actions button:hover{border-color:#2f4a9d;background:#202328}
+.graph-search{display:flex;align-items:center;gap:7px;color:#6e7789;flex:1;min-width:0;padding:0 4px}.graph-search input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#e1e3e7;font-size:11px}
+.graph-search:focus-within{outline:2px solid #2b4eb7;outline-offset:3px}
+.graph-matches{padding:8px 13px;display:flex;flex-wrap:wrap;gap:5px;max-height:100px;overflow:auto;border-bottom:1px solid #383d46;font-size:11px;color:#9198a6}
+.graph-matches[hidden]{display:none}.graph-matches button{color:#577ae4;background:#202328;border:1px solid #3e434d;padding:3px 6px;font:10px 'CMU Typewriter',monospace}
+.graph-layout{display:grid;grid-template-columns:minmax(0,1fr) 210px;min-height:420px}.graph-layout:not(.with-inspector){grid-template-columns:minmax(0,1fr)}
+.graph-explorer.expanded .graph-layout{min-height:0;flex:1}
+.graph-viewport{height:420px;overflow:auto;overscroll-behavior:contain;background-color:#111316;background-image:radial-gradient(#565d6b .7px,transparent .7px);background-size:18px 18px}
+.graph-explorer.expanded .graph-viewport,.graph-explorer.expanded .graph-inspector{height:100%}
+.graph-viewport svg{display:block;touch-action:pan-x pan-y;cursor:grab;background:none;border:0}.graph-viewport svg:active{cursor:grabbing}
+.graph-edges path{fill:none;stroke:#697284;stroke-width:1.2;opacity:.7;pointer-events:stroke}.graph-edges path.highlight{stroke:#6686e6;stroke-width:2;opacity:1}
+.graph-nodes g{cursor:pointer;outline:none}.graph-nodes rect{fill:#1f2227;stroke:#717b8e;stroke-width:1}.graph-nodes circle{fill:#949baa;stroke:none;cursor:pointer}
+.graph-nodes text{font:10px 'CMU Typewriter',monospace;fill:#e1e3e7;pointer-events:none}
+.graph-nodes g.on-path rect{stroke:#476ad2;stroke-width:1.5}
+.graph-nodes g.evidence-target:not(.selected) rect{fill:#272a31;stroke:#4e73e2;stroke-width:2}.graph-nodes g.evidence-target:not(.selected) circle{fill:#4e73e2}
+.graph-nodes g.selected rect{fill:#4e73e2;stroke:#97adee;stroke-width:2}.graph-nodes g.selected text,.graph-nodes g.selected circle{fill:#14161a}
+.graph-nodes g.match:not(.selected) rect{stroke:#6686e6;stroke-width:2.5}.graph-nodes g:focus-visible rect{stroke:#6686e6;stroke-width:2.5}
+.graph-inspector{border-left:1px solid #383d46;height:420px;overflow:auto;padding:18px 13px;background:#15171b}
+.graph-inspector .eyebrow{margin:0;font-size:10px;font-weight:700;letter-spacing:.14em;color:#9198a6}
+.graph-inspector h3{font:600 13px/1.35 'CMU Typewriter',monospace;color:#d4dbf1;overflow-wrap:anywhere;margin:10px 0}
+.graph-node-meta{display:flex;flex-wrap:wrap;gap:5px 10px;color:#949baa;font-size:11px}
+.graph-relations,.graph-path{border-top:1px solid #383d46;padding-top:11px;margin-top:15px}
+.graph-relations strong,.graph-path strong{display:block;color:#9198a6;text-transform:uppercase;letter-spacing:.08em;font-size:10px;margin-bottom:8px}
+.graph-relations button{display:flex;align-items:baseline;gap:5px;width:100%;padding:5px 0;background:none;border:0;text-align:left;color:#577ae4;font:10px 'CMU Typewriter',monospace}
+.graph-relations button span:nth-child(2){overflow-wrap:anywhere;min-width:0;flex:1}.graph-relations small{color:#9198a6;font-size:11px}
+.graph-path ol{margin:0;padding-left:16px}.graph-path li{margin:5px 0;color:#9198a6;font-size:10px}
+.graph-path button{border:0;background:none;color:#577ae4;font:10px 'CMU Typewriter',monospace;text-align:left;overflow-wrap:anywhere;padding:0}
+.graph-inspector>a{display:block;color:#577ae4;font-size:10px;margin-top:18px;text-decoration:none}
+.graph-caption{color:#9198a6;font-size:11px;line-height:1.5;padding:10px 13px;margin:0;border-top:1px solid #383d46}
+.graph-explorer.witness-mode .graph-layout{min-height:260px}.graph-explorer.witness-mode .graph-viewport,.graph-explorer.witness-mode .graph-inspector{height:260px}
+.graph-explorer.witness-mode .graph-viewport{background-image:none}.graph-explorer.witness-long .graph-layout{min-height:420px}
+.graph-explorer.witness-long .graph-viewport,.graph-explorer.witness-long .graph-inspector{height:420px}
+.graph-explorer.expanded.witness-mode .graph-viewport,.graph-explorer.expanded.witness-mode .graph-inspector{height:100%}
+@media(max-width:600px){.graph-layout{display:flex;flex-direction:column}.graph-viewport{height:340px}.graph-inspector{height:auto;max-height:300px;border-left:0;border-top:1px solid #383d46}}
 footer{max-width:900px;margin:0 auto;padding:0 20px 40px;text-align:center;font-size:12px;color:var(--muted)}
 @media(max-width:600px){.hero h1{font-size:34px}.candidate{flex-direction:column;align-items:stretch}.answer-head{flex-direction:column}}
 </style></head><body>
@@ -106,7 +161,6 @@ function reach(s,statement){
   while(h<order.length){var u=order[h++];for(var k=off[u];k<off[u+1];k++){var w=tgt[k];if(seen[w])continue;
     if(statement&&!((bt[k]&1)||(u!==s&&(bt[k]&2))))continue;seen[w]=1;parent[w]=u;depth[w]=depth[u]+1;order.push(w)}}
   return{order:order,parent:parent,depth:depth,seen:seen}}
-function pathNames(r,t){var p=[t];for(var v=r.parent[t];v>=0;v=r.parent[v])p.push(v);return collapse(p.reverse().map(function(k){return D.names[k]}))}
 var AXN=['Classical.choice','Quot.sound','propext','sorryAx'];
 for(i=0;i<D.nLib;i++)if(D.kinds[i]==='a'&&AXN.indexOf(D.names[i])<0)AXN.push(D.names[i]);
 function axiomsOf(s,statement){var r=reach(s,statement),out=[];AXN.forEach(function(a){var k=byName[a];if(k!==undefined&&r.seen[k])out.push({a:a,p:pathNames(r,k)})});return out}
@@ -182,25 +236,37 @@ function suggest(t){t=t.trim().toLowerCase();if(t.length<2)return[];var a=[],b=[
   for(var z=0;z<N&&a.length+b.length<40;z++){var n=D.names[z];if(isGen(n)||BP[z])continue;var l=n.toLowerCase();if(l.indexOf(t)===0)a.push(n);else if(l.indexOf(t)>0)b.push(n)}
   return a.concat(b).slice(0,8)}
 
-// ---- stage 3: the answer and the closure panel
-function pathHtml(names){return '<ol class="path">'+names.map(function(n){var k=byName[n];return '<li><code>'+esc(n)+'</code>'+(k!==undefined?'<small>'+esc(tagOf(k)[1])+' · '+esc(D.mods[D.nm[k]])+'</small>':'')+'</li>'}).join('')+'</ol>'}
+// ---- stage 3: the answer (cards, like the webapp), then the dependency graph and the closure panel in one disclosure
+var INFORMAL={'Classical.choice':'the axiom of choice','Classical.em':'the law of excluded middle','propext':'propositional extensionality','Quot.sound':'quotient soundness','funext':'function extensionality','sorryAx':'an unfinished proof (sorry)'};
+function collapseSteps(names){var o=[];names.forEach(function(n,i){var w=owner(n),last=i===names.length-1;if(!last&&o.length&&owner(o[o.length-1])===w)return;o.push(last||w===n?n:w)});return o}
+function pathIds(r,t){var p=[t];for(var v=r.parent[t];v>=0;v=r.parent[v])p.push(v);return p.reverse()}
+function pathNames(r,t){return collapseSteps(pathIds(r,t).map(function(k){return D.names[k]}))}
+function pathHtml(names){return '<ol class="path">'+names.map(function(n,i){var k=byName[n],d=k!==undefined?docsUrl(k):null;
+  return '<li><div class="story-step"><span class="path-node">'+(i>0?'<span class="edge-type">uses</span>':'')+esc(n)+(d?' <a class="ico" href="'+d+'" target="_blank" rel="noopener" title="Docs">docs</a>':'')+'</span>'+(k!==undefined?'<span class="story-statement">'+esc(tagOf(k)[1])+' · '+esc(D.mods[D.nm[k]])+'</span>':'')+'</div></li>'}).join('')+'</ol>'}
 function card(title,pill,body){return '<article class="answer-card"><div class="answer-head"><h3>'+title+'</h3>'+pill+'</div>'+body+'</article>'}
+function headline(root,t,steps){var via=INFORMAL[t];return 'A reference to '+esc(t)+' enters through '+esc(via||t)+', '+(steps===0?'in the selected proof itself':steps+(steps===1?' step':' steps')+' down')+'.'}
 function renderResults(p,k){
   ctx(k);
-  var statement=st.scope==='statement',r=reach(k,statement),h='<section><h2 id="results-title" style="font-size:32px;margin:26px 0 4px">Answer</h2><div class="answers">';
+  var statement=st.scope==='statement',r=reach(k,statement),ev=[],h='<section class="answer-stage"><h2 id="results-title" class="sr-only">Answer</h2><div class="answers">';
   if(!p.d.length){
-    var a=axiomsOf(k,statement);
-    h+=card('Axioms',a.length?'<span class="pill '+(a.some(function(x){return x.a==='sorryAx'})?'neg':'neu')+'">uses '+a.length+(a.length>1?' axioms':' axiom')+'</span>':'<span class="pill pos">no axioms</span>',
-      '<p class="note">'+(a.length?'Following every dependency '+(statement?'of the statement':'of the proof')+', '+esc(D.names[k])+' reaches '+a.map(function(x){return '<code>'+esc(x.a)+'</code>'}).join(', ')+'.':esc(D.names[k])+' reaches no axiom.')+'</p>'+a.map(function(x){return '<div class="ax"><code>'+esc(x.a)+'</code>'+pathHtml(x.p)+'</div>'}).join(''))}
-  p.d.forEach(function(t){var tk=byName[t],hit=tk!==undefined&&r.seen[tk];
-    h+=card('Depends on <code>'+esc(t)+'</code>?',hit?'<span class="pill pos">yes</span>':'<span class="pill neg">no</span>',
-      hit?'<p class="note">One witness path'+(statement?' through the statement':'')+':</p>'+pathHtml(pathNames(r,tk)):'<p class="note">'+esc(D.names[k])+(tk===undefined?' never reaches a declaration called ':' does not reach ')+'<code>'+esc(t)+'</code>'+(statement?' through its statement':'')+'. The closure is complete, so this is a definite absence.</p>')});
-  h+='</div></section>'+closurePanel(k,r,statement)+graphPanel(k);
-  $('#main').innerHTML=h;wire(p,k,r)}
+    var a=axiomsOf(k,statement);a.forEach(function(x){ev.push(pathIds(r,byName[x.a]))});
+    h+=card('Axioms',a.length?'<span class="status-pill '+(a.some(function(x){return x.a==='sorryAx'})?'negative':'pending')+'">Uses '+a.length+(a.length>1?' axioms':' axiom')+'</span>':'<span class="status-pill positive">No axioms</span>',
+      '<p class="answer-note">'+(a.length?esc(D.names[k])+' '+(statement?'states something that':'depends on')+' '+a.map(function(x){return esc(INFORMAL[x.a]||x.a)}).join(', ')+'.':esc(D.names[k])+' reaches no axiom, '+(statement?'in its statement':'in its proof')+'.')+'</p>'+a.map(function(x){return '<div class="witness"><p class="story-headline">'+esc(x.a)+'</p>'+pathHtml(x.p)+'</div>'}).join(''))}
+  p.d.forEach(function(t){var tk=byName[t],hit=tk!==undefined&&r.seen[tk];if(hit)ev.push(pathIds(r,tk));
+    var nm=t.charAt(0).toUpperCase()+t.slice(1);
+    h+=card('Depends on '+esc(t),hit?'<span class="status-pill positive">Found in dependencies</span>':'<span class="status-pill neutral">Never reached</span>',
+      hit?'<div class="witness"><p class="story-headline">'+headline(D.names[k],t,pathNames(r,tk).length-1)+'</p>'+pathHtml(pathNames(r,tk))+'<p class="fine-print">One shortest path'+(statement?', following the statement only':'')+'. Others may exist.</p></div>'
+         :'<p class="answer-note">Complete closure: none of the '+r.order.length.toLocaleString()+' declarations reachable from this result is '+esc(t)+(statement?' (following the statement only)':'')+'. This holds for the pinned Mathlib commit only; the closure includes compiler-generated declarations.</p>')});
+  h+='</div><details class="full-detail" open><summary><span class="full-detail-text"><strong>Dependency graph</strong><small>'+r.order.length.toLocaleString()+' declarations in the closure, and the axioms they use</small></span><span class="full-detail-chevron">&#9662;</span></summary><div id="gx"></div><div id="cp"></div></details></section>';
+  $('#main').innerHTML=h;
+  mountGraph($('#gx'),k,r,ev,statement);
+  paintPanel(p,k,r,statement)}
+function paintPanel(p,k,r,statement){
+  $('#cp').innerHTML=closurePanel(k,r,statement);wirePanel(p,k,r,statement)}
 function closurePanel(k,r,statement){
   var a=axiomsOf(k,statement);
-  var h='<section class="closure"><h2 style="font-size:24px;margin-bottom:10px">Closure</h2><div class="controls"><div class="seg"><button data-sc="proof" aria-pressed="'+(!statement)+'">Whole proof</button><button data-sc="statement" aria-pressed="'+statement+'"'+(D.scope?'':' disabled')+'>Statement only</button></div></div><p class="help">'+(statement?'What the statement alone depends on: its type, and through any definition it mentions, that definition.':'Every declaration the proof depends on, directly or not.')+'</p>';
-  h+='<details class="sec" open><summary>Axioms ('+a.length+')</summary>'+(a.length?a.map(function(x){return '<div class="ax"><code>'+esc(x.a)+'</code><div class="p">'+x.p.map(function(n){return '<code>'+esc(n)+'</code>'}).join(' &rarr; ')+'</div></div>'}).join(''):'<p class="help">None.</p>')+'</details>';
+  var h='<section class="closure"><h2>Closure</h2><div class="controls"><div class="seg"><button data-sc="proof" aria-pressed="'+(!statement)+'">Whole proof</button><button data-sc="statement" aria-pressed="'+statement+'"'+(D.scope?'':' disabled')+'>Statement only</button></div></div><p class="help">'+(statement?'What the statement alone depends on: its type, and through any definition it mentions, that definition.':'Every declaration the proof depends on, directly or not.')+'</p>';
+  h+='<details class="sec"><summary>Axioms ('+a.length+')</summary>'+(a.length?a.map(function(x){return '<div class="ax"><code>'+esc(x.a)+'</code><div class="p">'+x.p.map(function(n){return '<code>'+esc(n)+'</code>'}).join(' &rarr; ')+'</div></div>'}).join(''):'<p class="help">None.</p>')+'</details>';
   var rows=r.order.slice(1).filter(function(z){var n=D.names[z];return !(st.hideGen&&isGen(n))&&!(st.hideBp&&BP[z])&&(!st.filter||n.toLowerCase().indexOf(st.filter.toLowerCase())>=0)});
   var mine=rows.filter(isLib),theirs=rows.filter(function(z){return !isLib(z)});
   h+='<details class="sec" open><summary>Dependencies ('+rows.length+')</summary><div class="controls"><input type="search" id="flt" placeholder="Filter by name" value="'+esc(st.filter)+'"><label><input type="checkbox" id="hg"'+(st.hideGen?' checked':'')+'> Hide generated names</label><label><input type="checkbox" id="hb"'+(st.hideBp?' checked':'')+'> Hide instances and coercions</label><button class="btn" id="csv">Export CSV</button></div>';
@@ -212,33 +278,95 @@ function rowsHtml(rows,r,key,id){
   o.sort(function(a,b){return g[b].length-g[a].length||(a<b?-1:1)});
   return '<div class="rows">'+o.map(function(m){var cap=st.more[id+m]||80,l=g[m].slice(0,cap);
     return '<details><summary><span>'+esc(m)+'</span><span class="d">'+g[m].length+'</span></summary>'+l.map(function(z){return '<div><button class="n" data-k="'+z+'">'+esc(D.names[z])+'</button><span class="d">'+r.depth[z]+'</span></div>'}).join('')+(g[m].length>cap?'<div><button class="link" data-more="'+esc(id+m)+'" data-cap="'+cap+'">Show more</button></div>':'')+'</details>'}).join('')+'</div>'}
-function graphPanel(k){
-  var seen={},ids=[k];seen[k]=1;
-  (function look(u,depth){for(var z=off[u];z<off[u+1];z++){var w=tgt[z];if(seen[w])continue;if(isGen(D.names[w])&&depth<3){seen[w]=1;look(w,depth+1);continue}if(BP[w])continue;seen[w]=1;if(ids.length<30)ids.push(w)}})(k,0);
-  var ix={};ids.forEach(function(z,n){ix[z]=n});var edges=[];ids.forEach(function(u){for(var z=off[u];z<off[u+1];z++)if(ix[tgt[z]]!==undefined&&u!==tgt[z])edges.push([ix[u],ix[tgt[z]]])});
-  var nodes=ids.map(function(z){return{id:z,label:D.names[z],c:z===k?'var(--accent)':isLib(z)?'#8a5bd6':'var(--muted)',r:z===k?10:6}});
-  return '<section class="closure graph"><h2 style="font-size:24px;margin-bottom:10px">Direct dependencies</h2><p class="help">Purple nodes are your library, grey ones Mathlib and core. Click a node to make it the result of interest.</p>'+drawGraph(nodes,edges,820,420)+'</section>'}
-function layout(n,edges,w,h){
-  var p=[],i,j,k;for(i=0;i<n;i++){var a=i/n*6.283;p.push({x:w/2+Math.cos(a)*w/3,y:h/2+Math.sin(a)*h/3,vx:0,vy:0})}
-  for(k=0;k<250;k++){
-    for(i=0;i<n;i++)for(j=i+1;j<n;j++){var dx=p[i].x-p[j].x,dy=p[i].y-p[j].y,d2=dx*dx+dy*dy+.01,f=2600/d2,d=Math.sqrt(d2);p[i].vx+=dx/d*f;p[i].vy+=dy/d*f;p[j].vx-=dx/d*f;p[j].vy-=dy/d*f}
-    edges.forEach(function(e){var a=p[e[0]],b=p[e[1]],dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy)+.01,f=(d-60)*.02;a.vx+=dx/d*f;a.vy+=dy/d*f;b.vx-=dx/d*f;b.vy-=dy/d*f});
-    p.forEach(function(q){q.vx+=(w/2-q.x)*.005;q.vy+=(h/2-q.y)*.005;q.x=Math.max(20,Math.min(w-20,q.x+q.vx*.5));q.y=Math.max(14,Math.min(h-14,q.y+q.vy*.5));q.vx*=.6;q.vy*=.6})}
-  return p}
-function drawGraph(nodes,edges,w,h){
-  var p=layout(nodes.length,edges,w,h),s='<svg viewBox="0 0 '+w+' '+h+'">';
-  edges.forEach(function(e){s+='<line x1="'+p[e[0]].x+'" y1="'+p[e[0]].y+'" x2="'+p[e[1]].x+'" y2="'+p[e[1]].y+'"/>'});
-  nodes.forEach(function(n,i){var l=n.label.length>28?'…'+n.label.slice(-27):n.label;s+='<circle data-k="'+n.id+'" cx="'+p[i].x+'" cy="'+p[i].y+'" r="'+n.r+'" fill="'+n.c+'"><title>'+esc(n.label)+'</title></circle><text x="'+(p[i].x+n.r+3)+'" y="'+(p[i].y+3)+'">'+esc(l)+'</text>'});
-  return s+'</svg>'}
-function wire(p,k,r){
-  var again=function(){renderResults(p,k)};
-  document.querySelectorAll('[data-sc]').forEach(function(b){b.onclick=function(){st.scope=b.dataset.sc;again()}});
-  var f=$('#flt');f.oninput=function(){st.filter=f.value;var pos=f.selectionStart;again();var g=$('#flt');g.focus();g.setSelectionRange(pos,pos)};
-  $('#hg').onchange=function(){st.hideGen=this.checked;again()};$('#hb').onchange=function(){st.hideBp=this.checked;again()};
-  document.querySelectorAll('[data-k]').forEach(function(b){b.onclick=function(){go({r:D.names[+b.dataset.k]})}});
-  document.querySelectorAll('[data-more]').forEach(function(b){b.onclick=function(e){e.preventDefault();st.more[b.dataset.more]=+b.dataset.cap+200;var open=[].map.call(document.querySelectorAll('.rows details[open] summary span:first-child'),function(s){return s.textContent});again();document.querySelectorAll('.rows details').forEach(function(d){if(open.indexOf(d.querySelector('summary span').textContent)>=0)d.open=true})}});
-  $('#csv').onclick=function(){var rows=['name,module,depth'];r.order.slice(1).forEach(function(z){var n=D.names[z];if(st.hideGen&&isGen(n))return;if(st.hideBp&&BP[z])return;rows.push('"'+n.replace(/"/g,'""')+'",'+D.mods[D.nm[z]]+','+r.depth[z])});
-    var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')+'\n'],{type:'text/csv'}));a.download=D.names[k]+'.csv';a.click()}}
+function exportCsv(k,r){var rows=['name,module,depth'];r.order.slice(1).forEach(function(z){var n=D.names[z];if(st.hideGen&&isGen(n))return;if(st.hideBp&&BP[z])return;rows.push('"'+n.replace(/"/g,'""')+'",'+D.mods[D.nm[z]]+','+r.depth[z])});
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')+'\n'],{type:'text/csv'}));a.download=D.names[k]+'.csv';a.click()}
+function wirePanel(p,k,r,statement){
+  document.querySelectorAll('[data-sc]').forEach(function(b){b.onclick=function(){st.scope=b.dataset.sc;renderResults(p,k)}});
+  var f=$('#flt');f.oninput=function(){st.filter=f.value;var pos=f.selectionStart;paintPanel(p,k,r,statement);var g=$('#flt');g.focus();g.setSelectionRange(pos,pos)};
+  $('#hg').onchange=function(){st.hideGen=this.checked;paintPanel(p,k,r,statement)};$('#hb').onchange=function(){st.hideBp=this.checked;paintPanel(p,k,r,statement)};
+  document.querySelectorAll('#cp [data-k]').forEach(function(b){b.onclick=function(){go({r:D.names[+b.dataset.k]})}});
+  document.querySelectorAll('[data-more]').forEach(function(b){b.onclick=function(e){e.preventDefault();st.more[b.dataset.more]=+b.dataset.cap+200;var open=[].map.call(document.querySelectorAll('.rows details[open] summary span:first-child'),function(s){return s.textContent});paintPanel(p,k,r,statement);document.querySelectorAll('.rows details').forEach(function(d){if(open.indexOf(d.querySelector('summary span').textContent)>=0)d.open=true})}});
+  $('#csv').onclick=function(){exportCsv(k,r)}}
+
+// ---- the graph explorer of the webapp: columns by depth, witness path view, search, inspector, pan and pinch zoom
+var NW=225,NH=32,CG=92,RG=22,MG=54;
+function ico(p){return '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>'}
+var ICON={eye:ico('<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),net:ico('<rect x="9" y="2" width="6" height="6"/><rect x="2" y="16" width="6" height="6"/><rect x="16" y="16" width="6" height="6"/><path d="M12 8v4M5 16v-4h14v4"/>'),focus:ico('<circle cx="12" cy="12" r="3"/><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/>'),max:ico('<path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/>'),x:ico('<path d="M18 6 6 18M6 6l12 12"/>'),dl:ico('<path d="M12 3v12m0 0-4-4m4 4 4-4M4 21h16"/>'),search:ico('<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>')};
+var shortName=function(v){return v.length>32?'…'+v.slice(-31):v};
+function mountGraph(box,k,r,ev,statement){
+  var allowed=function(u,z){return !statement||(bt[z]&1)||(u!==k&&(bt[z]&2))};
+  var view={},vl=[];
+  var grow=function(z){for(var c=z;c>=0&&!view[c];c=r.parent[c]){view[c]=1;vl.push(c)}};
+  grow(k);ev.forEach(function(pa){pa.forEach(grow)});
+  for(var z=off[k];z<off[k+1]&&vl.length<140;z++){var w=tgt[z];if(r.seen[w]&&allowed(k,z))grow(w)}
+  var edges=[];vl.forEach(function(u){for(var z=off[u];z<off[u+1];z++){var w=tgt[z];if(view[w]&&r.seen[u]&&allowed(u,z))edges.push([u,w])}});
+  var first=ev.length?ev[0]:null;
+  var G={sel:null,q:'',zoom:1,full:true,big:false,narrow:window.matchMedia('(max-width:600px)').matches};
+  var evEdges={},evNodes={},evTargets={};ev.forEach(function(pa){pa.forEach(function(x,i){evNodes[x]=1;if(i)evEdges[pa[i-1]+'>'+x]=1});evTargets[pa[pa.length-1]]=1});
+  function fullLayout(){
+    var by={},maxD=0;vl.forEach(function(u){var d=r.depth[u];(by[d]=by[d]||[]).push(u);if(d>maxD)maxD=d});
+    var rows=0;for(var d in by){by[d].sort(function(a,b){return D.names[a]<D.names[b]?-1:1});rows=Math.max(rows,by[d].length)}
+    var height=Math.max(450,rows*(NH+RG)+MG*2),width=Math.max(660,(maxD+1)*(NW+CG)+MG*2),pos={};
+    for(var d2 in by){var g=by[d2],gh=g.length*(NH+RG)-RG;g.forEach(function(u,i){pos[u]={x:MG+(+d2)*(NW+CG),y:Math.max(MG,(height-gh)/2)+i*(NH+RG),depth:+d2}})}
+    return{pos:pos,width:width,height:height}}
+  function witnessLayout(vertical){var pos={};first.forEach(function(u,d){pos[u]={depth:d,x:vertical?(660-NW)/2:MG+d*(NW+CG),y:vertical?43+d*72:112}});
+    return{pos:pos,width:vertical?660:Math.max(660,first.length*(NW+CG)-CG+MG*2),height:vertical?Math.max(320,first.length*72+28):260}}
+  var FL=fullLayout();
+  box.innerHTML='<div class="graph-explorer"><div class="graph-toolbar"><div class="graph-toolbar-title"><label class="graph-search" id="gs">'+ICON.search+'<span class="sr-only">Search declarations in the graph</span><input id="gq" placeholder="Search observed nodes…"></label><strong id="gt">Witness path</strong></div><div class="graph-toolbar-actions"><button type="button" id="gw" title="Show witness path"></button><button type="button" id="gr" title="Reset view (double-click the background)">'+ICON.focus+'</button><button type="button" id="ge" title="Export the closure as CSV">'+ICON.dl+'</button><button type="button" id="gf" title="View graph full screen">'+ICON.max+'</button></div></div><div class="graph-matches" id="gm" hidden></div><div class="graph-layout" id="gl"></div><p class="graph-caption" id="gc"></p></div>';
+  var X=box.querySelector('.graph-explorer');
+  function cur(){var full=G.full||!first,vert=!full&&(first.length>2||G.narrow);return{full:full,vert:vert,L:full?FL:witnessLayout(vert)}}
+  function pathOf(id){return pathIds(r,id)}
+  function paint(keep){
+    var c=cur(),L=c.L,sel=G.sel!==null&&L.pos[G.sel]?G.sel:null,vp=X.querySelector('.graph-viewport'),sl=vp?vp.scrollLeft:0,stp=vp?vp.scrollTop:0;
+    X.className='graph-explorer '+(G.big?'expanded ':'')+(c.full?'full':'witness-mode')+(c.vert?' witness-long':'');
+    X.querySelector('#gs').style.display=c.full?'flex':'none';X.querySelector('#gt').style.display=c.full?'none':'block';
+    var gw=X.querySelector('#gw');gw.style.display=first?'':'none';gw.innerHTML=G.full?ICON.eye:ICON.net;gw.title=G.full?'Show witness path':'Show full graph';
+    X.querySelector('#gf').innerHTML=G.big?ICON.x:ICON.max;
+    var q=G.q.trim().toLowerCase(),match=function(u){return q&&D.names[u].toLowerCase().indexOf(q)>=0};
+    var ms=q?Object.keys(L.pos).filter(function(u){return match(+u)}):[],gm=X.querySelector('#gm');gm.hidden=!q;
+    gm.innerHTML=q?(ms.length?ms.slice(0,12).map(function(u){return '<button type="button" data-f="'+u+'">'+esc(D.names[u])+'</button>'}).join('')+(ms.length>12?'<span>+ '+(ms.length-12)+' more</span>':''):'<span>No observed declaration matches.</span>'):'';
+    var path=sel!==null?pathOf(sel):[],pe={},pn={};path.forEach(function(x,i){pn[x]=1;if(i)pe[path[i-1]+'>'+x]=1});
+    var s='<div class="graph-viewport" aria-label="Dependency graph, scroll to navigate"><svg width="'+L.width*G.zoom+'" height="'+L.height*G.zoom+'" viewBox="0 0 '+L.width+' '+L.height+'"><defs><marker id="wa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#7b93ff"/></marker></defs><g class="graph-edges">';
+    edges.forEach(function(e){var a=L.pos[e[0]],b=L.pos[e[1]];if(!a||!b)return;var hl=pe[e[0]+'>'+e[1]]||evEdges[e[0]+'>'+e[1]];
+      var sx=c.vert?a.x+NW/2:a.x+NW,ex=c.vert?b.x+NW/2:b.x,sy=c.vert?a.y+NH:a.y+NH/2,ey=c.vert?b.y:b.y+NH/2,dl=Math.max(20,(c.vert?ey-sy:ex-sx)/2);
+      s+='<path class="'+(hl?'highlight':'')+'"'+(c.full?'':' marker-end="url(#wa)"')+' d="'+(c.vert?'M '+sx+' '+sy+' C '+sx+' '+(sy+dl)+', '+ex+' '+(ey-dl)+', '+ex+' '+ey:'M '+sx+' '+sy+' C '+(sx+dl)+' '+sy+', '+(ex-dl)+' '+ey+', '+ex+' '+ey)+'"><title>'+esc(D.names[e[0]]+' → '+D.names[e[1]])+'</title></path>'});
+    s+='</g><g class="graph-nodes">';
+    Object.keys(L.pos).forEach(function(u){u=+u;var n=L.pos[u];s+='<g role="button" tabindex="0" data-id="'+u+'" class="'+(u===sel?'selected ':'')+(pn[u]||evNodes[u]?'on-path ':'')+(evTargets[u]?'evidence-target ':'')+(match(u)?'match':'')+'" transform="translate('+n.x+', '+n.y+')"><rect width="'+NW+'" height="'+NH+'" rx="3"/><circle cx="13" cy="'+NH/2+'" r="3"/><text x="23" y="20">'+esc(shortName(D.names[u]))+'</text><title>'+esc(D.names[u])+'</title></g>'});
+    s+='</g></svg></div>';
+    if(sel!==null){var inc=edges.filter(function(e){return e[1]===sel}),out=edges.filter(function(e){return e[0]===sel}),doc=docsUrl(sel),ed=editorUrl(sel);
+      s+='<aside class="graph-inspector"><p class="eyebrow">SELECTED DECLARATION</p><h3>'+esc(D.names[sel])+tagHtml(sel)+'</h3>'+
+        (c.full?'<div class="graph-node-meta"><span>Depth '+r.depth[sel]+'</span><span>'+esc(where(sel))+'</span></div>'+
+        '<div class="graph-relations"><strong>'+inc.length+' incoming</strong>'+inc.slice(0,9).map(function(e){return '<button data-f="'+e[0]+'"><span>&#8601;</span><span>'+esc(D.names[e[0]])+'</span></button>'}).join('')+(inc.length>9?'<small>+ '+(inc.length-9)+' more</small>':'')+'</div>'+
+        '<div class="graph-relations"><strong>'+out.length+' outgoing</strong>'+out.slice(0,9).map(function(e){return '<button data-f="'+e[1]+'"><span>&#8599;</span><span>'+esc(D.names[e[1]])+'</span></button>'}).join('')+(out.length>9?'<small>+ '+(out.length-9)+' more</small>':'')+'</div>'+
+        (path.length>1?'<div class="graph-path"><strong>Path from the theorem</strong><ol>'+path.map(function(x){return '<li><button data-f="'+x+'">'+esc(D.names[x])+'</button></li>'}).join('')+'</ol></div>':''):'')+
+        (doc?'<a href="'+doc+'" target="_blank" rel="noopener">View docs &#8599;</a>':'')+(ed?'<a href="'+ed+'">Open in your editor &#8599;</a>':'')+'<a href="#" data-r="'+sel+'">Make it the result of interest &#8594;</a></aside>'}
+    var gl=X.querySelector('#gl');gl.className='graph-layout'+(sel!==null?' with-inspector':'');gl.innerHTML=s;
+    X.querySelector('#gc').innerHTML=c.full?'Showing '+Object.keys(FL.pos).length+' of '+r.order.length.toLocaleString()+' declarations of the closure: the witness paths and the direct dependencies of the result. Click a node to inspect it; pinch or ctrl+scroll to zoom; double-click the background to reset.':'One witness path from the result of interest to what you asked about.';
+    var nv=gl.querySelector('.graph-viewport');if(keep){nv.scrollLeft=sl;nv.scrollTop=stp}
+    wireGraph(nv)}
+  function center(u,smooth){var c=cur(),n=c.L.pos[u],a=X.querySelector('.graph-viewport');if(!n||!a)return;a.scrollTo({left:(n.x+NW/2)*G.zoom-a.clientWidth/2,top:(n.y+NH/2)*G.zoom-a.clientHeight/2,behavior:smooth?'smooth':'auto'})}
+  function focusNode(u){G.sel=u;if(!cur().L.pos[u]){G.full=true}paint(false);requestAnimationFrame(function(){center(u,true)})}
+  function fitWitness(){if(!first)return;var c=cur(),a=X.querySelector('.graph-viewport');
+    var ns=(c.full?first.slice(-3):first).map(function(u){return c.L.pos[u]}).filter(Boolean);if(!ns.length||!a)return;
+    var x0=Math.min.apply(0,ns.map(function(n){return n.x})),x1=Math.max.apply(0,ns.map(function(n){return n.x+NW})),y0=Math.min.apply(0,ns.map(function(n){return n.y})),y1=Math.max.apply(0,ns.map(function(n){return n.y+NH}));
+    var nz=c.full?Math.max(.3,Math.min(1.3,(a.clientWidth-140)/(x1-x0),(a.clientHeight-140)/(y1-y0))):1;G.zoom=nz;paint(false);
+    requestAnimationFrame(function(){var b=X.querySelector('.graph-viewport');b.scrollTo({left:(x0+x1)/2*nz-b.clientWidth/2,top:(y0+y1)/2*nz-b.clientHeight/2,behavior:'smooth'})})}
+  function reset(){G.sel=null;if(first){fitWitness();return}G.zoom=1;paint(false)}
+  function wireGraph(vp){
+    X.querySelectorAll('[data-id]').forEach(function(g){g.onclick=function(){focusNode(+g.dataset.id)};g.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();focusNode(+g.dataset.id)}}});
+    X.querySelectorAll('[data-f]').forEach(function(b){b.onclick=function(){focusNode(+b.dataset.f)}});
+    X.querySelectorAll('[data-r]').forEach(function(a){a.onclick=function(e){e.preventDefault();go({r:D.names[+a.dataset.r]})}});
+    var svg=vp.querySelector('svg'),drag=null;
+    svg.onpointerdown=function(e){if(e.target!==svg)return;drag={x:e.clientX,y:e.clientY,l:vp.scrollLeft,t:vp.scrollTop};svg.setPointerCapture(e.pointerId)};
+    svg.onpointermove=function(e){if(!drag)return;vp.scrollLeft=drag.l-(e.clientX-drag.x);vp.scrollTop=drag.t-(e.clientY-drag.y)};
+    svg.onpointerup=svg.onpointercancel=function(){drag=null};svg.ondblclick=function(e){if(e.target===svg)reset()};
+    vp.addEventListener('wheel',function(e){if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();var rc=vp.getBoundingClientRect(),px=e.clientX-rc.left,py=e.clientY-rc.top,b=G.zoom,n=Math.max(.25,Math.min(2.5,b*Math.exp(-e.deltaY*.01)));G.zoom=n;paint(true);var v2=X.querySelector('.graph-viewport');v2.scrollLeft=(vp.scrollLeft+px)*(n/b)-px;v2.scrollTop=(vp.scrollTop+py)*(n/b)-py},{passive:false})}
+  X.querySelector('#gq').oninput=function(){G.q=this.value;paint(true)};
+  X.querySelector('#gm').onclick=function(e){var b=e.target.closest('[data-f]');if(b)focusNode(+b.dataset.f)};
+  X.querySelector('#gw').onclick=function(){G.full=!G.full;G.zoom=1;paint(false);requestAnimationFrame(function(){if(G.full&&G.sel!==null)center(G.sel,true);else fitWitness()})};
+  X.querySelector('#gr').onclick=reset;X.querySelector('#ge').onclick=function(){exportCsv(k,r)};
+  X.querySelector('#gf').onclick=function(){G.big=!G.big;paint(true)};
+  paint(false);if(first)requestAnimationFrame(fitWitness)}
 
 function render(){
   var p=cur();window.scrollTo(0,0);
