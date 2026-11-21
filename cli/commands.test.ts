@@ -124,15 +124,14 @@ describe('library layer', () => {
     expect(g2.id('missing')).toBeUndefined()
   })
 
-  it('builds report data with direct dependencies, sorry flags and a self-contained page', () => {
+  it('builds report data: the library first, then its closure, with statement bits and a self-contained page', () => {
     const r = buildReport(g2, 'Lib')
-    const by = (n: string) => r.decls.find((d) => d.n === n)!
-    expect(r.decls.map((d) => d.n).sort()).toEqual(['Lib.bad', 'Lib.helper', 'Lib.main', 'Lib.stmt'])
-    expect(by('Lib.main').d.map((i) => r.decls[i].n).sort()).toEqual(['Lib.helper', 'Lib.stmt'])
-    expect(by('Lib.helper').ml).toEqual(['Nat.add_comm'])
-    expect(by('Lib.bad').s).toBe(true)
-    expect(by('Lib.bad').ax.map((a) => a.a)).toEqual(['sorryAx'])
-    expect(by('Lib.helper').u).toBe(1)
+    expect(r.nLib).toBe(4)
+    expect(r.names.slice(0, 4).sort()).toEqual(['Lib.bad', 'Lib.helper', 'Lib.main', 'Lib.stmt'])
+    expect(r.names).toContain('Nat.add_comm')
+    expect(r.names).toContain('sorryAx')
+    expect(r.focus.length).toBe(4)
+    expect(r.kinds).toHaveLength(4)
     const html = renderReport(r)
     expect(html).toContain('"Lib.main"')
     expect(html).not.toContain('/*DATA*/null')

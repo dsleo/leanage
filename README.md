@@ -80,7 +80,7 @@ Needs Lean installed and your Lake project built (`lake build`) against the same
 
 ```
 leanage index <project> [--dir <subdir>]   # runs scripts/extract_library.lean over every module the project has built; --dir marks the modules of interest; writes <project>/.leanage/library.tsv
-leanage report --lib <project> [--out file.html]          # self-contained HTML report: health, module graph, per-declaration witness paths
+leanage report --lib <project> [--out file.html]          # self-contained HTML page with the webapp flow: pick a result of interest, name a target (or none), get axioms/witness path and the closure panel
 leanage explore --lib <project>                           # interactive, like the webapp: confirm a result of interest, then give a target (path) or none (axioms, closure size)
 leanage libs --lib <project>                              # your theorems and the axioms each reaches (sorryAx = unfinished)
 leanage path MyLib.main Classical.choice --lib <project>  # witness path, each step tagged [library] or [Mathlib]

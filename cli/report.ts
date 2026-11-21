@@ -1,74 +1,86 @@
-import { axiomAudit, isGeneratedName, isStructuralAuxName } from '../src/closureData'
-import type { LocalGraph } from '../src/localGraph'
+import { isGeneratedName, isStructuralAuxName } from '../src/closureData'
+import { EDGE_DEF_VALUE, EDGE_IN_TYPE, EDGE_IN_VALUE, type LocalGraph } from '../src/localGraph'
 import { REPORT_HTML } from './reportHtml'
 
-export interface ReportDecl {
-  n: string // name
-  m: number // module index
-  k: string // kind letter
-  f: boolean // in the modules of interest
-  d: number[] // direct library dependencies (decl indexes), generated helper declarations looked through
-  ml: string[] // direct Mathlib/core dependencies (names, capped)
-  mc: number // how many direct Mathlib/core dependencies in total
-  ax: { a: string; p: string[] }[] // axioms reached, with the witness path
-  s: boolean // refers to sorryAx directly
-  u: number // number of library declarations that use it
-  l?: number // source line
-  b: boolean // instance, projection or coercion
-}
+declare const __REPORT_FONTS__: string | undefined // injected by cli/build.mjs
+
+/**
+ * The closure of your library inside the store, compact enough to ship in one HTML file: nodes are numbered with your library first,
+ * then everything it reaches (Mathlib and core). `edges` is, per node, a varint count followed by varints of (delta to previous target) * 4 + type bits:
+ * 1 = the reference is in the statement, 2 = it is in the value of a definition. The page runs the same questions as the webapp on it.
+ */
 export interface ReportData {
   project: string
   mathlib?: string
   built: string
   root?: string // project directory, for editor links
-  files: string[] // source file per module index (empty when unknown)
+  files: Record<string, string> // module -> source file, for your library
   mods: string[]
-  decls: ReportDecl[]
+  nm: number[] // module index per node
+  names: string[]
+  nLib: number // nodes below this index are your library
+  kinds: string // one letter per library node: t theorem, d definition, i instance, a axiom, o other
+  focus: number[] // library nodes of interest (the modules you pointed at), real declarations only
+  lines: Record<number, number> // source line per library node
+  bp: number[] // instances, projections, coercions, structure helpers
+  edges: string // base64
+  scope: boolean // statement-only questions are possible
 }
 
-declare const __REPORT_FONTS__: string | undefined // injected by cli/build.mjs
 const KINDS = new Set(['t', 'd', 'i', 'a', 'o'])
 
 export function buildReport(graph: LocalGraph, project: string): ReportData {
   const start = graph.libraryStart!
-  const real: number[] = []
-  for (let id = start; id < graph.size; id++) if (KINDS.has(graph.libraryKind(id) ?? '') && !isGeneratedName(graph.name(id))) real.push(id)
-  const index = new Map(real.map((id, i) => [id, i]))
-  const mods: string[] = []
-  const modIdx = new Map<string, number>()
-  const sorry = graph.id('sorryAx')
+  const order: number[] = []
+  const idx = new Map<number, number>()
+  const add = (id: number) => { if (!idx.has(id)) { idx.set(id, order.length); order.push(id) } }
+  for (let id = start; id < graph.size; id++) add(id)
+  const nLib = order.length
+  for (let h = 0; h < order.length; h++) for (const t of graph.dependencies(order[h])) add(t)
 
-  // Direct dependencies of a declaration, looking through the generated helpers (proof_1, match_1, ...) of the library.
-  const look = (id: number, seen = new Set<number>()): number[] => {
-    const out: number[] = []
-    for (const t of graph.dependencies(id)) {
-      if (seen.has(t)) continue
-      seen.add(t)
-      if (graph.isLibrary(t) && isGeneratedName(graph.name(t))) out.push(...look(t, seen))
-      else out.push(t)
+  const bytes: number[] = []
+  const varint = (n: number) => { while (n >= 128) { bytes.push((n % 128) | 128); n = Math.floor(n / 128) } bytes.push(n) }
+  for (const id of order) {
+    const deps = graph.dependencies(id)
+    const row: [number, number][] = []
+    for (let i = 0; i < deps.length; i++) {
+      const b = graph.edgeTypes(id, i)
+      row.push([idx.get(deps[i])!, b === null ? 0 : (b & EDGE_IN_TYPE ? 1 : 0) + ((b & (EDGE_IN_VALUE | EDGE_DEF_VALUE)) === (EDGE_IN_VALUE | EDGE_DEF_VALUE) ? 2 : 0)])
     }
-    return out
+    row.sort((a, b) => a[0] - b[0])
+    varint(row.length)
+    let prev = 0
+    for (const [t, bits] of row) { varint((t - prev) * 4 + bits); prev = t }
   }
 
-  const uses = new Array<number>(real.length).fill(0)
-  const decls: ReportDecl[] = real.map((id) => {
-    const module = graph.module(id)
-    if (!modIdx.has(module)) { modIdx.set(module, mods.length); mods.push(module) }
-    const deps = look(id)
-    const lib = [...new Set(deps.filter((t) => index.has(t) && t !== id).map((t) => index.get(t)!))]
-    for (const t of lib) uses[t]++
-    const ext = [...new Set(deps.filter((t) => !graph.isLibrary(t) && !isGeneratedName(graph.name(t)) && !graph.isBoilerplate(t)).map((t) => graph.name(t)))]
-    return {
-      n: graph.name(id), m: modIdx.get(module)!, k: graph.libraryKind(id)!, f: graph.inFocus(id), d: lib, ml: ext.slice(0, 40), mc: ext.length,
-      ax: graph.libraryKind(id) === 't' || graph.libraryKind(id) === 'd' ? axiomAudit(graph, id).map((a) => ({ a: a.axiom, p: a.path })) : [],
-      s: sorry !== undefined && deps.includes(sorry), u: 0, l: graph.libraryLine(id), b: graph.isBoilerplate(id) || isStructuralAuxName(graph.name(id)),
-    }
+  const mods: string[] = []
+  const modIdx = new Map<string, number>()
+  const nm = order.map((id) => {
+    const m = graph.module(id)
+    if (!modIdx.has(m)) { modIdx.set(m, mods.length); mods.push(m) }
+    return modIdx.get(m)!
   })
-  decls.forEach((d, i) => { d.u = uses[i] })
-  return { project, mathlib: graph.meta.mathlib_commit, built: new Date().toISOString().slice(0, 10), root: graph.libraryRoot, files: mods.map((m) => graph.libraryFiles?.get(m) ?? ''), mods, decls }
+  const names = order.map((id) => graph.name(id))
+  const kinds = order.slice(0, nLib).map((id) => graph.libraryKind(id) ?? 'o').join('')
+  const focus: number[] = []
+  const lines: Record<number, number> = {}
+  for (let i = 0; i < nLib; i++) {
+    const id = order[i]
+    if (graph.inFocus(id) && KINDS.has(kinds[i]) && !isGeneratedName(names[i]) && !graph.isBoilerplate(id) && !isStructuralAuxName(names[i])) focus.push(i)
+    const l = graph.libraryLine(id)
+    if (l !== undefined) lines[i] = l
+  }
+  const bp: number[] = []
+  order.forEach((id, i) => { if (graph.isBoilerplate(id) || isStructuralAuxName(names[i])) bp.push(i) })
+  const files: Record<string, string> = {}
+  for (const m of new Set(nm.slice(0, nLib).map((i) => mods[i]))) { const f = graph.libraryFiles?.get(m); if (f) files[m] = f }
+  return {
+    project, mathlib: graph.meta.mathlib_commit, built: new Date().toISOString().slice(0, 10), root: graph.libraryRoot, files, mods, nm, names, nLib, kinds, focus, lines, bp,
+    edges: Buffer.from(bytes).toString('base64'), scope: graph.hasEdgeTypes,
+  }
 }
 
 export function renderReport(data: ReportData): string {
   const json = JSON.stringify(data).replace(/</g, '\\u003c')
-  return REPORT_HTML.replace('/*DATA*/null', () => json).replace('/*FONTS*/', () => (typeof __REPORT_FONTS__ !== 'undefined' ? __REPORT_FONTS__ : '')).replace('{{TITLE}}', () => data.project.replace(/[<>&"]/g, ''))
+  return REPORT_HTML.replace('/*FONTS*/', () => (typeof __REPORT_FONTS__ !== 'undefined' ? __REPORT_FONTS__ : '')).replace('/*DATA*/null', () => json).replace('{{TITLE}}', () => data.project.replace(/[<>&"]/g, ''))
 }

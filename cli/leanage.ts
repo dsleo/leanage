@@ -77,7 +77,7 @@ export async function main(argv: string[]): Promise<Result> {
     const file = resolve(values.out ?? (values.lib.endsWith('.tsv') ? 'leanage-report.html' : `${values.lib}/.leanage/report.html`))
     const data = buildReport(graph, basename(resolve(values.lib.replace(/\.leanage\/library\.tsv$/, ''))))
     writeFileSync(file, renderReport(data))
-    return { out: `Wrote ${file} (${data.decls.length} declarations)\n`, err: warn, code: 0 }
+    return { out: `Wrote ${file} (${data.focus.length} declarations of interest, ${data.names.length} nodes)\n`, err: warn, code: 0 }
   }
   const r = ((): Result => {
     switch (cmd) {
