@@ -1,5 +1,5 @@
 {
-  "name": "leanage",
+  "name": "@dsleo/leanage",
   "version": "0.2.0",
   "description": "Query the Lean/Mathlib dependency graph from the command line: axioms, dependencies, paths, and CI checks.",
   "type": "module",

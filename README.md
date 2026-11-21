@@ -91,7 +91,7 @@ leanage check MyLib.main --forbid sorryAx --lib <project>
 
 ### Install from npm
 
-The CLI is also packaged standalone (`cli/package.json`, single bundled file, no dependencies, Node >= 18): `npx leanage check <name> --forbid Classical.choice`. Build it with `npm run build:cli` (output `cli/dist/leanage.mjs`); see `cli/README.md` for the CI example and exit codes (0 ok, 1 check failed or no path, 2 name missing or usage error). `--store <dir-or-url>` overrides the pinned Hugging Face store revision in `cli/store.ts`.
+The CLI is also packaged standalone (`cli/package.json`, single bundled file, no dependencies, Node >= 18): `npx @dsleo/leanage check <name> --forbid Classical.choice`. Build it with `npm run build:cli` (output `cli/dist/leanage.mjs`); see `cli/README.md` for the CI example and exit codes (0 ok, 1 check failed or no path, 2 name missing or usage error). `--store <dir-or-url>` overrides the pinned Hugging Face store revision in `cli/store.ts`.
 
 ## Deploying
 
