@@ -4,25 +4,26 @@ export const REPORT_HTML = String.raw`<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{{TITLE}} · Leanage report</title>
 <style>
-:root{--bg:#faf8f3;--panel:#fff;--ink:#1d1b16;--mute:#6b665b;--line:#e4dfd2;--accent:#6b3fa0;--warn:#b3471d;--ok:#2d7a4f;--chip:#f0ece1}
-@media (prefers-color-scheme:dark){:root{--bg:#16150f;--panel:#1e1d16;--ink:#ece8da;--mute:#9a9585;--line:#34322a;--accent:#b99be0;--warn:#e8885f;--ok:#6fc596;--chip:#2a2820}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 ui-serif,Georgia,serif}
-header{padding:20px 24px 8px;border-bottom:1px solid var(--line)}h1{margin:0;font-size:22px}h2{font-size:15px;margin:0 0 8px;font-variant:small-caps;letter-spacing:.04em}
+/*FONTS*/
+:root{--bg:#f6f7f9;--panel:#fff;--ink:#12161f;--mute:#5b6472;--line:#d9dde3;--accent:#2748d8;--warn:#a14e37;--ok:#2f7a55;--chip:#e6ebfc}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1116;--panel:#161b24;--ink:#e6e9f0;--mute:#9aa3b5;--line:#2a3140;--accent:#7b93ff;--warn:#e8885f;--ok:#6fc596;--chip:#1c2547}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 'CMU Sans',system-ui,sans-serif}
+header{padding:20px 24px 10px;border-bottom:1px solid var(--mute)}h1,h2,h3{font-family:'CMU Serif',Georgia,serif;font-weight:400}h1{margin:0;font-size:26px;letter-spacing:-.015em}h2{font-size:18px;margin:0 0 8px}
 .sub{color:var(--mute);font-size:13px;margin-top:2px}
 .wrap{display:grid;grid-template-columns:320px 1fr;min-height:calc(100vh - 80px)}
 aside{border-right:1px solid var(--line);padding:12px;overflow:auto;max-height:calc(100vh - 80px);position:sticky;top:0}
 main{padding:20px 24px;min-width:0}
-input{width:100%;padding:7px 9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;font:inherit}
-.mod{margin:12px 0 2px;font:600 12px ui-monospace,Menlo,monospace;color:var(--mute);cursor:pointer}
-.item{padding:3px 6px;border-radius:5px;cursor:pointer;font:13px ui-monospace,Menlo,monospace;word-break:break-all}.item:hover,.item.on{background:var(--chip)}
+input{width:100%;padding:7px 9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:0;font:inherit}
+.mod{margin:12px 0 2px;font:600 12px 'CMU Typewriter',ui-monospace,Menlo,monospace;color:var(--mute);cursor:pointer}
+.item{padding:3px 6px;border-radius:0;cursor:pointer;font:13px 'CMU Typewriter',ui-monospace,Menlo,monospace;word-break:break-all}.item:hover,.item.on{background:var(--chip)}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:18px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;cursor:pointer}.card b{font-size:26px;display:block}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:0;padding:12px 14px;cursor:pointer}.card b{font-size:26px;display:block}
 .card.bad b{color:var(--warn)}.card.good b{color:var(--ok)}
-.box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:16px}
-.tag{display:inline-block;font:11px ui-monospace,Menlo,monospace;padding:1px 6px;border-radius:9px;background:var(--chip);margin-left:4px}.tag.w{color:var(--warn)}.tag.l{color:var(--accent)}
-code,.mono{font:13px ui-monospace,Menlo,monospace}a,.link{color:var(--accent);cursor:pointer}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:0;padding:14px;margin-bottom:16px}
+.tag{display:inline-block;font:11px 'CMU Typewriter',ui-monospace,Menlo,monospace;padding:1px 6px;border-radius:0;background:var(--chip);margin-left:4px}.tag.w{color:var(--warn)}.tag.l{color:var(--accent)}
+code,.mono{font:13px 'CMU Typewriter',ui-monospace,Menlo,monospace}a,.link{color:var(--accent);cursor:pointer}
 .path div{padding:1px 0}.path .lib{color:var(--accent)}
-svg{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px}svg text{font:10px ui-monospace,Menlo,monospace;fill:var(--ink);pointer-events:none}
+svg{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:0}svg text{font:10px 'CMU Typewriter',ui-monospace,Menlo,monospace;fill:var(--ink);pointer-events:none}
 svg line{stroke:var(--line);stroke-width:1}svg circle{cursor:pointer;stroke:var(--bg);stroke-width:1.5}
 ul.plain{margin:0;padding-left:18px}
 @media(max-width:800px){.wrap{grid-template-columns:1fr}aside{position:static;max-height:260px;border-right:0;border-bottom:1px solid var(--line)}}

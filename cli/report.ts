@@ -26,6 +26,7 @@ export interface ReportData {
   decls: ReportDecl[]
 }
 
+declare const __REPORT_FONTS__: string | undefined // injected by cli/build.mjs
 const KINDS = new Set(['t', 'd', 'i', 'a', 'o'])
 
 export function buildReport(graph: LocalGraph, project: string): ReportData {
@@ -69,5 +70,5 @@ export function buildReport(graph: LocalGraph, project: string): ReportData {
 
 export function renderReport(data: ReportData): string {
   const json = JSON.stringify(data).replace(/</g, '\\u003c')
-  return REPORT_HTML.replace('/*DATA*/null', () => json).replace('{{TITLE}}', () => data.project.replace(/[<>&"]/g, ''))
+  return REPORT_HTML.replace('/*DATA*/null', () => json).replace('/*FONTS*/', () => (typeof __REPORT_FONTS__ !== 'undefined' ? __REPORT_FONTS__ : '')).replace('{{TITLE}}', () => data.project.replace(/[<>&"]/g, ''))
 }
