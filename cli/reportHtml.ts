@@ -195,6 +195,18 @@ function ctx(k){
   $('#ctx').innerHTML='<div class="context-bar">'+head()+'<div class="context-id"><code>'+esc(D.names[k])+'</code>'+tagHtml(k)+(doc?'<a class="ico" href="'+doc+'" target="_blank" rel="noopener" title="Docs">docs</a>':'')+(ed?'<a class="ico" href="'+ed+'" title="Open in your editor">open in editor</a>':'')+' <a class="ico" href="#" title="Change">change</a></div><div class="context-sub">'+(KIND[D.kinds[k]]||'declaration')+' · '+esc(where(k))+'</div></div></div>'}
 $('#foot').textContent='Built locally from your Lake project, nothing uploaded · Mathlib '+(D.mathlib?D.mathlib.slice(0,7):'?')+' · generated '+D.built;
 
+
+// ---- plain-English search, like the webapp: the one online feature, off until you click it (only the text you typed leaves this page)
+var TG='https://leanage.vercel.app/tg/graph/embedding';
+function semantic(q,done){
+  fetch(TG+'?'+new URLSearchParams({query:q,n_results:'24',formality:'formal'})).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}).then(function(j){
+    var seen={},out=[];(j.results||[]).forEach(function(x){var l=x.external_id||x.title||'';if(!/^Mathlib/i.test(l)||!x.name||seen[x.name])return;seen[x.name]=1;out.push({name:x.name,slogan:x.slogan||''})});done(null,out.slice(0,8))}).catch(function(e){done(e)})}
+function semHtml(list){return list.length?'<div class="sugg">'+list.map(function(x){return '<div data-n="'+esc(x.name)+'"><code>'+esc(x.name)+'</code>'+(byName[x.name]===undefined?' <span class="sub">not reached by your library</span>':'')+'<br><span class="sub">'+esc(x.slogan)+'</span></div>'}).join('')+'</div>':'<p class="help">No Mathlib statement matches.</p>'}
+function semRun(btn,box,q,pick){
+  if(!q.trim())return;box.innerHTML='<p class="help">Searching TheoremGraph…</p>';
+  semantic(q,function(e,list){if(e){box.innerHTML='<p class="help">Plain-English search is unavailable right now ('+esc(e.message)+'). Search by Lean name works offline.</p>';return}
+    box.innerHTML=semHtml(list);box.onclick=function(ev){var t=ev.target.closest('[data-n]');if(t)pick(t.dataset.n)}})}
+
 // ---- stage 1: search and confirm a result of interest
 function candidates(q,f){
   var pool=f==='sorry'?sorryL:f==='classical'?classL:f==='unused'?unusedL:focus;q=q.toLowerCase();
@@ -206,12 +218,13 @@ function renderSearch(p){
   var card=function(cls,n,t,f){return '<button class="card '+cls+(p.f===f?' on':'')+'" data-f="'+f+'"><b>'+n+'</b><span>'+t+'</span></button>'};
   var h='<div class="hero"><h1>Leanage <em>report</em></h1><div class="sub">'+esc(D.project)+' · '+focus.length+' declarations of interest · '+D.nLib+' in the library · '+Object.keys(libMathlib).length+' distinct Mathlib/core declarations used directly</div></div>'+
    '<form class="search-form" id="sf"><span>&#9906;</span><input id="q" aria-label="Declaration of your library" value="'+esc(p.q)+'" placeholder="e.g. main_theorem, or part of a name" autocomplete="off"><button type="submit" aria-label="Search">&rarr;</button></form>'+
-   '<div class="cards">'+card(sorryL.length?'bad':'good',sorryL.length,'reach sorryAx (unfinished)','sorry')+card('',classL.length,'theorems reach Classical.choice','classical')+card('',unusedL.length,'not used by the library','unused')+'</div>'+
+   '<p class="examples"><button class="link" id="sem" type="button">Search Mathlib in plain English</button> · sends the text you typed to TheoremGraph, nothing from your code</p><div id="semres"></div><div class="cards">'+card(sorryL.length?'bad':'good',sorryL.length,'reach sorryAx (unfinished)','sorry')+card('',classL.length,'theorems reach Classical.choice','classical')+card('',unusedL.length,'not used by the library','unused')+'</div>'+
    '<h2 class="section-h" id="candidate-title">'+(p.f?{sorry:'Unfinished results',classical:'Results using Classical.choice',unused:'Results nothing else uses'}[p.f]:'Results of interest')+' <span class="sub">('+list.length+')</span></h2>';
   if(!list.length)h+='<div class="sub">No declaration matches.</div>';
   list.slice(0,shown).forEach(function(k){h+='<div class="candidate"><div><h3>'+esc(D.names[k])+tagHtml(k)+(has(k,'sorryAx')?'<span class="tag w">sorry</span>':'')+'</h3><p>'+(KIND[D.kinds[k]]||'')+' · '+esc(where(k))+'</p></div><button class="btn" data-k="'+k+'">Confirm this result</button></div>'});
   if(list.length>shown)h+='<button class="btn" id="more">Show more ('+(list.length-shown)+')</button>';
   $('#main').innerHTML=h;
+  $('#sem').onclick=function(){semRun(this,$('#semres'),$('#q').value,function(n){if(byName[n]!==undefined)go({r:n})})};
   $('#sf').onsubmit=function(e){e.preventDefault();st.more.search=0;go({q:$('#q').value})};
   document.querySelectorAll('.card').forEach(function(b){b.onclick=function(){go({f:p.f===b.dataset.f?'':b.dataset.f,q:p.q})}});
   document.querySelectorAll('.candidate .btn').forEach(function(b){b.onclick=function(){go({r:D.names[+b.dataset.k]})}});
@@ -220,24 +233,41 @@ function renderSearch(p){
 // ---- stage 2: what would you like to detect?
 function renderAsk(p,k){
   ctx(k);
-  var h='<section class="ask"><h2>What would you like to detect?</h2><form class="search-form" id="tf"><span>&#9906;</span><input id="t" aria-label="Name a result it should depend on" placeholder="e.g. uses Classical.choice, or depends on Nat.add_comm" autocomplete="off"><button type="submit" aria-label="Add" title="Add">+</button></form><div id="sg"></div>'+
-   '<div class="chips" id="chips">'+p.d.map(function(t){return '<span class="chip">'+esc(t)+'<button data-t="'+esc(t)+'" aria-label="Remove">&times;</button></span>'}).join('')+'</div>'+
-   '<div class="try">Try this on <a class="link" data-add="Classical.choice">Axiom of choice</a><a class="link" data-add="sorryAx">Unfinished proof (sorry)</a><a class="link" data-add="propext">Propositional extensionality</a></div>'+
+  var h='<section class="ask"><h2>What would you like to detect?</h2><form class="search-form" id="tf"><span>&#9906;</span><input id="t" aria-label="Name a result it should depend on" placeholder="e.g. induction, Classical.choice, or Nat.add_comm" autocomplete="off"><button type="submit" aria-label="Add" title="Add">+</button></form><div id="sg"></div>'+
+   '<div class="chips" id="chips">'+p.d.map(function(t){return '<span class="chip">'+esc(METHODS[t]?METHODS[t].label:t)+'<button data-t="'+esc(t)+'" aria-label="Remove">&times;</button></span>'}).join('')+'</div>'+
+   '<p class="try"><button class="link" id="tsem" type="button">Search Mathlib in plain English</button> · sends the text you typed to TheoremGraph</p><div id="tsemres"></div><div class="try">Try this on <a class="link" data-add="Classical.choice">Axiom of choice</a><a class="link" data-add="induction">Induction</a><a class="link" data-add="cases">Case analysis</a><a class="link" data-add="absurd">Contradiction</a><a class="link" data-add="sorryAx">Unfinished proof (sorry)</a><a class="link" data-add="propext">Propositional extensionality</a></div>'+
    '<p style="margin-top:22px"><button class="btn primary" id="run">'+(p.d.length?'Find it':'Show axioms and closure')+'</button></p><p class="help">Without a target you get the axioms the result depends on and its whole closure; with targets you also get one witness path for each.</p></section>';
   $('#main').innerHTML=h;
-  var add=function(t){t=t.trim();if(!t)return;if(byName[t]===undefined){var s=suggest(t);if(!s.length)return;t=s[0]}if(p.d.indexOf(t)<0)go({r:p.r,d:p.d.concat([t])})};
+  var add=function(t){t=t.trim();if(!t)return;if(SYN[t.toLowerCase()])t=SYN[t.toLowerCase()];if(!METHODS[t]&&byName[t]===undefined){var s=suggest(t);if(!s.length)return;t=s[0]}if(p.d.indexOf(t)<0)go({r:p.r,d:p.d.concat([t])})};
   $('#tf').onsubmit=function(e){e.preventDefault();add($('#t').value)};
   $('#t').oninput=function(){var s=suggest($('#t').value);$('#sg').innerHTML=s.length?'<div class="sugg">'+s.map(function(x){return '<div data-s="'+esc(x)+'">'+esc(x)+'</div>'}).join('')+'</div>':''};
   $('#sg').onclick=function(e){var t=e.target.closest('[data-s]');if(t)add(t.dataset.s)};
   document.querySelectorAll('[data-add]').forEach(function(a){a.onclick=function(){add(a.dataset.add)}});
   document.querySelectorAll('.chip button').forEach(function(b){b.onclick=function(){go({r:p.r,d:p.d.filter(function(x){return x!==b.dataset.t})})}});
+  $('#tsem').onclick=function(){semRun(this,$('#tsemres'),$('#t').value,function(n){if(p.d.indexOf(n)<0)go({r:p.r,d:p.d.concat([n])})})};
   $('#run').onclick=function(){go({r:p.r,d:p.d,run:1})}}
 function suggest(t){t=t.trim().toLowerCase();if(t.length<2)return[];var a=[],b=[];
   for(var z=0;z<N&&a.length+b.length<40;z++){var n=D.names[z];if(isGen(n)||BP[z])continue;var l=n.toLowerCase();if(l.indexOf(t)===0)a.push(n);else if(l.indexOf(t)>0)b.push(n)}
   return a.concat(b).slice(0,8)}
 
+
+// ---- method questions (induction, case analysis, contradiction): structural markers in the closure, and tactics read from your own source
+var METHODS={
+  induction:{label:'Induction',obs:['induction'],rel:[],rules:[{n:'Nat.rec',g:'observed',x:'Nat.rec is Lean’s built-in rule for induction on natural numbers, and this proof is built from it. That shows the argument runs by induction or recursion, but not that the author typed the induction tactic.'},{n:'Nat.recAux',g:'observed',x:'Nat.recAux is induction on natural numbers where the successor case receives the previous case as its hypothesis. That shows the argument runs by induction, but not that the author typed the induction tactic.'}]},
+  cases:{label:'Case analysis',obs:['cases','by_cases','split_ifs','fin_cases'],rel:['rcases','obtain','rintro','match'],rules:[{n:'Or.elim',g:'observed',x:'Reference to disjunction elimination, which splits an Or proof into alternatives.'},{n:'Nat.casesAuxOn',g:'observed',x:'Reference to Nat.casesAuxOn, which has separate zero and successor branches.'}]},
+  absurd:{label:'Proof by contradiction',obs:['by_contra','contrapose'],rel:['exfalso'],rules:[{n:'Decidable.byContradiction',g:'observed',x:'Reference to the named contradiction principle.'},{n:'False.elim',g:'related',x:'Reference to False elimination (ex falso). This alone does not establish proof by contradiction.'}]}};
+var SYN={'induction':'induction','case analysis':'cases','cases':'cases','contradiction':'absurd','by contradiction':'absurd','proof by contradiction':'absurd','absurd':'absurd'};
+function methodEvidence(k,r,m){
+  var M=METHODS[m],ev=[],ord={observed:0,related:1};
+  r.order.forEach(function(z){var n=D.names[z];
+    if(z!==k)M.rules.forEach(function(ru){if(n===ru.n)ev.push({z:z,g:ru.g,src:false,tok:ru.n,x:ru.x})});
+    var tc=z<D.nLib&&D.tac[z];if(tc)tc.split(',').forEach(function(t){
+      if(M.obs.indexOf(t)>=0)ev.push({z:z,g:'observed',src:true,tok:t,x:'The '+t+' tactic is written in the source of this declaration (read from your Lean file).'});
+      else if(M.rel.indexOf(t)>=0)ev.push({z:z,g:'related',src:true,tok:t,x:t+' appears in the source of this declaration. It is related to the question but does not by itself show the method.'})})});
+  ev.sort(function(a,b){return ord[a.g]-ord[b.g]||r.depth[a.z]-r.depth[b.z]||(D.names[a.z]<D.names[b.z]?-1:1)});return ev}
+
 // ---- stage 3: the answer (cards, like the webapp), then the dependency graph and the closure panel in one disclosure
-var INFORMAL={'Classical.choice':'the axiom of choice','Classical.em':'the law of excluded middle','propext':'propositional extensionality','Quot.sound':'quotient soundness','funext':'function extensionality','sorryAx':'an unfinished proof (sorry)'};
+var INFORMAL={'Nat.rec':'the induction principle on ℕ','Nat.recAux':'induction on ℕ with the previous case as hypothesis','Or.elim':'case analysis on a disjunction','Decidable.byContradiction':'proof by contradiction','False.elim':'ex falso (from a contradiction, anything)','Classical.choice':'the axiom of choice','Classical.em':'the law of excluded middle','propext':'propositional extensionality','Quot.sound':'quotient soundness','funext':'function extensionality','sorryAx':'an unfinished proof (sorry)'};
 function collapseSteps(names){var o=[];names.forEach(function(n,i){var w=owner(n),last=i===names.length-1;if(!last&&o.length&&owner(o[o.length-1])===w)return;o.push(last||w===n?n:w)});return o}
 function pathIds(r,t){var p=[t];for(var v=r.parent[t];v>=0;v=r.parent[v])p.push(v);return p.reverse()}
 function pathNames(r,t){return collapseSteps(pathIds(r,t).map(function(k){return D.names[k]}))}
@@ -252,7 +282,14 @@ function renderResults(p,k){
     var a=axiomsOf(k,statement);a.forEach(function(x){ev.push(pathIds(r,byName[x.a]))});
     h+=card('Axioms',a.length?'<span class="status-pill '+(a.some(function(x){return x.a==='sorryAx'})?'negative':'pending')+'">Uses '+a.length+(a.length>1?' axioms':' axiom')+'</span>':'<span class="status-pill positive">No axioms</span>',
       '<p class="answer-note">'+(a.length?esc(D.names[k])+' '+(statement?'states something that':'depends on')+' '+a.map(function(x){return esc(INFORMAL[x.a]||x.a)}).join(', ')+'.':esc(D.names[k])+' reaches no axiom, '+(statement?'in its statement':'in its proof')+'.')+'</p>'+a.map(function(x){return '<div class="witness"><p class="story-headline">'+esc(x.a)+'</p>'+pathHtml(x.p)+'</div>'}).join(''))}
-  p.d.forEach(function(t){var tk=byName[t],hit=tk!==undefined&&r.seen[tk];if(hit)ev.push(pathIds(r,tk));
+  p.d.forEach(function(t){
+    if(METHODS[t]){var me=methodEvidence(k,r,t),pr=me.filter(function(e){return e.g==='observed'})[0]||me[0];
+      me.slice(0,7).forEach(function(e){ev.push(pathIds(r,e.z))});
+      var steps=pr?pathNames(r,pr.z).length-1:0,where=steps===0?'in the selected proof itself':steps+(steps===1?' step':' steps')+' down';
+      h+=card(METHODS[t].label,!pr?'<span class="status-pill neutral">Not found</span>':pr.g==='related'?'<span class="status-pill pending">Related only</span>':'<span class="status-pill positive">'+(pr.src?'Written in the proof':'Found in dependencies')+'</span>',
+        pr?'<div class="witness"><p class="story-headline">'+(pr.src?esc(METHODS[t].label)+' is written in the proof of '+esc(D.names[pr.z])+', '+where+'.':esc(METHODS[t].label)+' enters through '+esc(INFORMAL[D.names[pr.z]]||D.names[pr.z])+', '+where+'.')+'</p>'+pathHtml(pathNames(r,pr.z))+'<p class="fine-print">'+esc(pr.x)+'</p></div>'
+          :'<p class="answer-note">No evidence of '+esc(METHODS[t].label.toLowerCase())+' appeared among the '+r.order.length.toLocaleString()+' declarations reachable from this result. For methods this is not proof of absence: tactics are read from your library’s source only, and Mathlib declarations count only through structural markers such as Nat.rec.</p>');return}
+    var tk=byName[t],hit=tk!==undefined&&r.seen[tk];if(hit)ev.push(pathIds(r,tk));
     var nm=t.charAt(0).toUpperCase()+t.slice(1);
     h+=card('Depends on '+esc(t),hit?'<span class="status-pill positive">Found in dependencies</span>':'<span class="status-pill neutral">Never reached</span>',
       hit?'<div class="witness"><p class="story-headline">'+headline(D.names[k],t,pathNames(r,tk).length-1)+'</p>'+pathHtml(pathNames(r,tk))+'<p class="fine-print">One shortest path'+(statement?', following the statement only':'')+'. Others may exist.</p></div>'

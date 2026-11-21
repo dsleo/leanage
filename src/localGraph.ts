@@ -18,7 +18,7 @@ export interface StoreFiles {
   meta: StoreMeta
 }
 
-export interface LibraryDecl { name: string; module: string; kind: string; typeDeps: string[]; valueDeps: string[]; /** letters from extract_library.lean; undefined = not reported */ flags?: string; line?: number }
+export interface LibraryDecl { name: string; /** tactics found in the source: undefined = unknown, [] = none */ tactics?: string[]; module: string; kind: string; typeDeps: string[]; valueDeps: string[]; /** letters from extract_library.lean; undefined = not reported */ flags?: string; line?: number }
 
 export const TACTIC_COVERED = 1 << 15
 export interface TacticLegend {
@@ -122,6 +122,7 @@ export class LocalGraph {
   libraryFiles?: Map<string, string>
   libraryRoot?: string
   private libLines: (number | undefined)[] = []
+  private libTactics: (string[] | undefined)[] = []
   private byName?: Map<string, number>
   private nameOrder?: 'sorted' | 'unsorted'
   private axiomIds?: Map<number, string>
@@ -217,6 +218,7 @@ export class LocalGraph {
 
   /** Tactic labels recorded in the proof source, or null when this declaration has no tactic data (which is not the same as "no tactics"). */
   tacticsOf(id: number): string[] | null {
+    if (this.isLibrary(id)) return this.libTactics[id - this.baseSize] ?? null
     const bits = this.tacticBits?.[id]
     if (bits === undefined || !(bits & TACTIC_COVERED)) return null
     const out: string[] = []
@@ -359,6 +361,7 @@ export class LocalGraph {
       this.flagBytes = f
     }
     this.libLines = decls.map((d) => d.line)
+    this.libTactics = decls.map((d) => d.tactics)
     if (this.tacticBits) { const t = new Uint16Array(n); t.set(this.tacticBits); this.tacticBits = t }
     this.libKinds = decls.map((d) => d.kind)
     this.libUnresolved = unresolved.size

@@ -2,17 +2,44 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
   "rewrites": [
-    { "source": "/how-it-works", "destination": "/index.html" },
-    { "source": "/principle", "destination": "/index.html" },
-    { "source": "/tg/graph/embedding", "destination": "https://api.theoremsearch.com/graph/embedding" },
-    { "source": "/tg/graph/statement/:id", "destination": "https://api.theoremsearch.com/graph/statement/:id" }
+    {
+      "source": "/how-it-works",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/principle",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/tg/graph/embedding",
+      "destination": "https://api.theoremsearch.com/graph/embedding"
+    },
+    {
+      "source": "/tg/graph/statement/:id",
+      "destination": "https://api.theoremsearch.com/graph/statement/:id"
+    }
   ],
   "headers": [
     {
       "source": "/tg/graph/statement/:id",
       "headers": [
-        { "key": "x-vercel-enable-rewrite-caching", "value": "1" },
-        { "key": "CDN-Cache-Control", "value": "public, max-age=3600" }
+        {
+          "key": "x-vercel-enable-rewrite-caching",
+          "value": "1"
+        },
+        {
+          "key": "CDN-Cache-Control",
+          "value": "public, max-age=3600"
+        }
+      ]
+    },
+    {
+      "source": "/tg/graph/embedding",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        }
       ]
     }
   ]

@@ -16,9 +16,9 @@ export function parseLibraryTsv(text: string): LibraryFile {
       else if (line.startsWith('# lean ')) out.lean = line.slice(7)
       continue
     }
-    const [name, type, value, kind, module, flags, ln] = line.split('\t')
+    const [name, type, value, kind, module, flags, ln, tac] = line.split('\t')
     if (!name || !module) throw new Error(`Malformed library line: ${line.slice(0, 80)}`)
-    out.decls.push({ name, module, kind: kind ?? '?', typeDeps: list(type ?? ''), valueDeps: list(value ?? ''), flags: flags === undefined ? undefined : flags === '-' ? '' : flags, line: ln ? Number(ln) : undefined })
+    out.decls.push({ name, module, kind: kind ?? '?', typeDeps: list(type ?? ''), valueDeps: list(value ?? ''), flags: flags === undefined ? undefined : flags === '-' ? '' : flags, line: ln ? Number(ln.split('-')[0]) : undefined, tactics: tac ? (tac === '-' ? [] : tac.split(',')) : undefined })
   }
   return out
 }

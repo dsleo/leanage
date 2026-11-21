@@ -1,6 +1,6 @@
 {
   "name": "@dsleo/leanage",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Query the Lean/Mathlib dependency graph from the command line: axioms, dependencies, paths, and CI checks.",
   "type": "module",
   "bin": { "leanage": "dist/leanage.mjs" },

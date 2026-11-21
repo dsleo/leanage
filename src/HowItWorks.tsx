@@ -45,8 +45,8 @@ export default function HowItWorks() {
           <div><h2 id="g-data">The data</h2></div>
           <div>
             <p>Dependencies come from one local store, extracted with Lean: <strong>1.65 million declarations</strong> and 73.6 million references between them, covering Lean core, Batteries, Mathlib at commit <code>31ce06e</code> (Lean v4.37.0-rc1) and <Ext href="https://github.com/TauCetiProject/TauCeti">TauCeti</Ext> at commit <code>8794ab3</code>. The store is a static copy loaded into your browser; closures are computed there, not on a server. Every search and every answer runs over all of it at once.</p>
-            <p><strong>Mathlib and TauCeti.</strong> Mathlib is the large human-written library. TauCeti is an AI-written Lean library built on top of Mathlib: its declarations may depend on Mathlib, and Mathlib never depends on TauCeti. A result carries a Mathlib, TauCeti, Lean core or Batteries tag, and its documentation link goes to that library's own docs. The practical differences are these. Mathlib is searchable in plain English, through TheoremGraph, and has tactic evidence (see below). TauCeti is found by its Lean name only, for example a name copied from its docs, and has no tactic records. Dependency paths and axiom answers behave the same in both, and a TauCeti result can lead straight into Mathlib.</p>
-            <p>Mathlib tactic information comes from <code>mathlib-tactics</code>, matched to declarations by module and source position. TheoremGraph is used only for search by description and for statements shown beside results; it does not decide any dependency answer when the store has the declaration.</p>
+            <p><strong>Mathlib and TauCeti.</strong> Mathlib is the large human-written library. TauCeti is an AI-written Lean library built on top of Mathlib: its declarations may depend on Mathlib, and Mathlib never depends on TauCeti. A result carries a Mathlib, TauCeti, Lean core or Batteries tag, and its documentation link goes to that library's own docs. The practical difference is how you find a result: Mathlib statements can be searched in plain English, through TheoremGraph, while TauCeti is found by its Lean name only (for example a name copied from its docs), because TheoremGraph does not index it. Once you have a result, dependency paths and axiom answers behave the same in both, and a TauCeti result can lead straight into Mathlib.</p>
+            <p>The store has no same-commit tactic records: the tactic dataset we used before is for an older Mathlib commit and cannot be matched to this one. Method questions (induction, case analysis, contradiction) therefore rest on structural markers in the compiled proofs, such as <code>Nat.rec</code>, plus an index of tactics from an older Mathlib snapshot. TheoremGraph is used only for search by description and for statements shown beside results; it does not decide any dependency answer when the store has the declaration.</p>
             <p>Everything is pinned to those two commits. A newer version may differ, and the store is updated by hand.</p>
           </div>
         </section>
@@ -58,7 +58,7 @@ export default function HowItWorks() {
               <dt>Found in dependencies</dt>
               <dd>The closure contains a declaration that implements the method (for example <code>Nat.rec</code> for induction) or the exact name you asked for. The path shows how it is reached.</dd>
               <dt>Written in the proof</dt>
-              <dd>The Mathlib source, at the same commit, records that tactic (for example <code>induction</code>) in this declaration or one of its dependencies.</dd>
+              <dd>The source of this declaration or one of its dependencies contains that tactic (for example <code>induction</code>). The command-line report reads this from your own Lean files; the web store has no such records for Mathlib or TauCeti at the moment.</dd>
               <dt>Possible, older Mathlib</dt>
               <dd>A tactic was recorded for a declaration of the same name in an older Mathlib snapshot. The proof may have changed since.</dd>
               <dt>Possible, unconfirmed</dt>
@@ -87,9 +87,9 @@ export default function HowItWorks() {
           <div>
             <ul className="guide-list">
               <li><strong>“Statement only” follows definitions.</strong> The closure panel can show what the statement alone depends on. It follows the statement’s references and, through any definition they mention, that definition’s body. So a statement about <code>Real.sqrt</code> reaches the choice that defines the reals. Proofs of theorems that appear inside a statement are not followed. A few links from a type to its constructors are not seen (0.05% of references).</li>
-              <li><strong>Core Lean tactics come from a source scan.</strong> Declarations from Lean itself (<code>Init</code>, <code>Std</code>, <code>Lean</code>) have no recorded tactics, so we scan their source and keep only the tactics where that scan was accurate on Mathlib (induction, cases, rcases, obtain and a few more). <code>by_cases</code>, <code>by_contra</code> and <code>match</code> are not reported for them, and proofs written by the equation compiler show no <code>induction</code> even though they recurse.</li>
-              <li><strong>Tactics are about 97% complete.</strong> Matching source to declarations misses about 3% of tactics. Nothing was wrongly attached in our keyword check.</li>
-              <li><strong>Scoped instances are not flagged.</strong> Instances, projections and coercions can be hidden as boilerplate, using flags extracted from Lean, but scoped instances are not covered.</li>
+              <li><strong>Tactic records are limited.</strong> Without same-commit tactic data, a method that leaves no structural trace is reported as not found, which is not proof of absence. Your own library, analysed with the command-line report, does not have this limit: its tactics are read from your Lean files. We checked that scan on a sample of 3,204 Mathlib declarations against Mathlib's recorded tactics. It agreed exactly for induction, cases, rcases, obtain, contrapose, rintro, split_ifs and fin_cases, and it finds <code>by_cases</code> and <code>by_contra</code> in the source more often than the recorded data does (where we looked, the source did contain them).</li>
+              
+              <li><strong>Scoped instances.</strong> Instances, projections and coercions can be hidden as boilerplate, using flags extracted from Lean. Scoped instances are flagged for your own library; this store was built before that was added, so scoped instances of Mathlib and TauCeti are still shown.</li>
               <li><strong>Generated names.</strong> Lean creates helper declarations (names containing parts like <code>_proof_1</code> or <code>match_1</code>). They are hidden by default and folded into the declaration that owns them, but they stay in the store because real dependencies sometimes pass through them.</li>
               <li><strong>Two pinned commits.</strong> Results say nothing about other versions of Mathlib or TauCeti. If your result is not in the store, or its name changed, it cannot be analysed.</li>
             </ul>
@@ -120,13 +120,13 @@ leanage check <name> --forbid Classical.choice`}</pre>
           <div><h2 id="g-credits">Data and credits</h2></div>
           <div>
             <ul className="guide-list">
-              <li><Ext href="https://huggingface.co/datasets/mathlib-initiative/mathlib-const-dep">mathlib-initiative/mathlib-const-dep</Ext>: the dependency graph (Apache-2.0).</li>
-              <li><Ext href="https://huggingface.co/datasets/mathlib-initiative/mathlib-tactics">mathlib-initiative/mathlib-tactics</Ext>: tactic records from Mathlib source (Apache-2.0).</li>
+              <li><Ext href="https://huggingface.co/datasets/mathlib-initiative/mathlib-const-dep">mathlib-initiative/mathlib-const-dep</Ext>: the dependency graph the first store was built from (Apache-2.0).</li>
+              <li><Ext href="https://huggingface.co/datasets/mathlib-initiative/mathlib-tactics">mathlib-initiative/mathlib-tactics</Ext>: tactic records from Mathlib source, used to calibrate the tactic scan (Apache-2.0).</li>
               <li><Ext href="https://github.com/leanprover-community/mathlib4">Mathlib</Ext>: the library analysed (Apache-2.0).</li>
               <li><Ext href="https://github.com/TauCetiProject/TauCeti">TauCeti</Ext>: the AI-written Lean library built on Mathlib, analysed in the second store (Apache-2.0).</li>
               <li><Ext href="https://www.theoremsearch.com/docs">TheoremGraph</Ext> (api.theoremsearch.com): search by description and statements.</li>
               <li><Ext href="https://lean-lang.org">Lean</Ext>: the proof assistant, used to extract instance and coercion flags and to check axioms.</li>
-              <li><Ext href="https://huggingface.co/datasets/dsleo/leanage-mathlib-store">dsleo/leanage-mathlib-store</Ext>: the compact store Leanage derived from the datasets above (Apache-2.0).</li>
+              <li><Ext href="https://huggingface.co/datasets/dsleo/leanage-tauceti-store">dsleo/leanage-tauceti-store</Ext>: the compact store Leanage extracted from Lean for Mathlib and TauCeti (Apache-2.0).</li>
             </ul>
           </div>
         </section>

@@ -1,3 +1,4 @@
+import { addTactics } from './tactics'
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
@@ -82,8 +83,9 @@ export function indexLibrary(project: string, dir: string | undefined): { file: 
   if (r.error) return { file, modules: mods.length, err: `Could not run lake: ${r.error.message}. Install Lean (https://lean-lang.org/install) and build the project first.\n` }
   if (r.status !== 0) return { file, modules: mods.length, err: 'The Lean extraction failed. Build the project first (lake build) so the modules have .olean files.\n' }
   const commit = manifestMathlibCommit(proj)
-  const files = moduleFiles(proj, mods).map(([m, f]) => `# file ${m} ${f}\n`).join('')
-  writeFileSync(file, (commit ? `# mathlib ${commit}\n` : '') + files + (focus ? `# focus ${focus.join(',')}\n` : '') + readFileSync(raw, 'utf8'))
+  const fileList = moduleFiles(proj, mods)
+  const files = fileList.map(([m, f]) => `# file ${m} ${f}\n`).join('')
+  writeFileSync(file, (commit ? `# mathlib ${commit}\n` : '') + files + (focus ? `# focus ${focus.join(',')}\n` : '') + addTactics(readFileSync(raw, 'utf8'), proj, new Map(fileList)))
   return { file, modules: mods.length, focus: focus?.length }
 }
 

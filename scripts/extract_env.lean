@@ -36,9 +36,19 @@ def kindOf : ConstantInfo → String
   | .recInfo _ => "r"
   | .quotInfo _ => "q"
 
-def flagsOf (env : Environment) (coe : NameMap CoeFnInfo) (n : Name) (ci : ConstantInfo) : String := Id.run do
+/-- Scoped instances are only active inside their namespace, so `isInstanceCore` misses them after an import; read them from the modules' entries. -/
+def scopedInstances (env : Environment) : NameSet := Id.run do
+  let mut s : NameSet := {}
+  for i in [0:env.header.moduleNames.size] do
+    for e in Lean.Meta.instanceExtension.ext.getModuleEntries env i do
+      match e with
+      | .scoped _ ie => if let some n := ie.globalName? then s := s.insert n
+      | .global _ => pure ()
+  return s
+
+def flagsOf (env : Environment) (coe : NameMap CoeFnInfo) (scopedInsts : NameSet) (n : Name) (ci : ConstantInfo) : String := Id.run do
   let mut s := ""
-  if isInstanceCore env n then s := s ++ "i"
+  if isInstanceCore env n || scopedInsts.contains n then s := s ++ "i"
   if env.isProjectionFn n then s := s ++ "p"
   if coe.contains n then s := s ++ "c"
   if isCoeDecl env n then s := s ++ "d"
@@ -56,6 +66,7 @@ unsafe def main (args : List String) : IO UInt32 := do
   enableInitializersExecution
   let env ← importModules #[{ module := root }] {} (loadExts := true)
   let coe := coeExt.getState env
+  let scopedInsts := scopedInstances env
   let h ← IO.FS.Handle.mk out .write
   h.putStrLn s!"# lean {Lean.versionString} {Lean.githash}"
   let count ← IO.mkRef 0
@@ -63,7 +74,7 @@ unsafe def main (args : List String) : IO UInt32 := do
     let m := match env.getModuleIdxFor? n with
       | some i => env.header.moduleNames[i.toNat]!.toString
       | none => "?"
-    h.putStrLn s!"{n}\t{joinNames ci.type.getUsedConstants}\t{joinNames (valueDeps ci)}\t{kindOf ci}\t{m}\t{flagsOf env coe n ci}"
+    h.putStrLn s!"{n}\t{joinNames ci.type.getUsedConstants}\t{joinNames (valueDeps ci)}\t{kindOf ci}\t{m}\t{flagsOf env coe scopedInsts n ci}"
     count.modify (· + 1)
   h.flush
   IO.eprintln s!"wrote {← count.get} constants"

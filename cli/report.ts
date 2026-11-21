@@ -23,6 +23,7 @@ export interface ReportData {
   focus: number[] // library nodes of interest (the modules you pointed at), real declarations only
   lines: Record<number, number> // source line per library node
   bp: number[] // instances, projections, coercions, structure helpers
+  tac: Record<number, string> // tactics read from your source, per library node (comma separated)
   edges: string // base64
   scope: boolean // statement-only questions are possible
 }
@@ -70,12 +71,14 @@ export function buildReport(graph: LocalGraph, project: string): ReportData {
     const l = graph.libraryLine(id)
     if (l !== undefined) lines[i] = l
   }
+  const tac: Record<number, string> = {}
+  for (let i = 0; i < nLib; i++) { const t = graph.tacticsOf(order[i]); if (t?.length) tac[i] = t.join(',') }
   const bp: number[] = []
   order.forEach((id, i) => { if (graph.isBoilerplate(id) || isStructuralAuxName(names[i])) bp.push(i) })
   const files: Record<string, string> = {}
   for (const m of new Set(nm.slice(0, nLib).map((i) => mods[i]))) { const f = graph.libraryFiles?.get(m); if (f) files[m] = f }
   return {
-    project, mathlib: graph.meta.mathlib_commit, built: new Date().toISOString().slice(0, 10), root: graph.libraryRoot, files, mods, nm, names, nLib, kinds, focus, lines, bp,
+    project, mathlib: graph.meta.mathlib_commit, built: new Date().toISOString().slice(0, 10), root: graph.libraryRoot, files, mods, nm, names, nLib, kinds, focus, lines, bp, tac,
     edges: Buffer.from(bytes).toString('base64'), scope: graph.hasEdgeTypes,
   }
 }
