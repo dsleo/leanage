@@ -129,7 +129,7 @@ function evidenceForNode(state: TraversalState, objective: Objective, id: string
   const observedTokens = new Set<string>()
   for (const { token, grade } of sourceTactics(state, objective.kind, declaration.name)) {
     if (grade === 'observed') observedTokens.add(token)
-    found.push({ id: `source-tactic:${objective.kind}:${id}:${token}`, category: objective.kind, grade, source: 'MathlibTactics', ruleId: `source-tactic:${token}`, matchedName: declaration.name, matchedToken: token, explanation: grade === 'observed' ? `The ${token} tactic is recorded in the proof source of this declaration, at the same Mathlib commit as the dependency store.` : `${token} is recorded in the proof source at the same Mathlib commit, but it does not by itself establish the specific method.`, graphSourceLabel: declaration.sourceLabel ?? state.rootSourceLabel, location: location(path), path })
+    found.push({ id: `source-tactic:${objective.kind}:${id}:${token}`, category: objective.kind, grade, source: 'MathlibTactics', ruleId: `source-tactic:${token}`, matchedName: declaration.name, matchedToken: token, explanation: grade === 'observed' ? `The ${token} tactic is written in the source of this declaration, read at the commit the dependency store was built from.` : `${token} is written in the source of this declaration, but it does not by itself establish the specific method.`, graphSourceLabel: declaration.sourceLabel ?? state.rootSourceLabel, location: location(path), path })
   }
   if (!index || !state.visited.has(id)) return found
   const marker = index.markers[declaration.name]

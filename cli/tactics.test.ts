@@ -18,9 +18,16 @@ describe('tactic scan', () => {
     expect(scan("theorem a : p := by\n  induction' n\n  simp")).toEqual([])
     expect(scan('macro "m" : tactic => `(tactic| cases h)')).toEqual([])
   })
-  it('counts match only inside a tactic block', () => {
-    expect(scan('def f : Nat → Nat\n  | 0 => 1\n  | n+1 => match n with | 0 => 2 | _ => 3')).toEqual([])
-    expect(scan('theorem a : p := by\n  match h with\n  | .inl x => exact x\n  | .inr y => exact y')).toEqual(['match'])
+  it('does not report match (precision below the bar against Mathlib)', () => {
+    expect(scan('theorem a : p := by\n  match h with\n  | .inl x => exact x\n  | .inr y => exact y')).toEqual([])
+  })
+  it('skips the term-mode uses the calibration found', () => {
+    expect(scan('theorem a : p := ⟨fun _ =>\n    by_contra fun h => foo h, bar⟩')).toEqual([])
+    expect(scan('theorem a : p := by\n  by_contra h\n  exact h')).toEqual(['by_contra'])
+    expect(scan('theorem a : p := by\n  by_cases (fun h => foo) fun h => bar')).toEqual([])
+    expect(scan('theorem a : p := by\n  by_cases h : x = 0\n  · simp')).toEqual(['by_cases'])
+    expect(scan('structure C where\n  exfalso : Bool := true\ntheorem a : p := by\n  exfalso\n  simp')).toEqual(['exfalso'])
+    expect(scan('def f := g (induction := false)')).toEqual([])
   })
   it('adds a tactics column from the declaration lines, empty when unknown', () => {
     const dir = mkdtempSync(join(tmpdir(), 'leanage-tac-'))

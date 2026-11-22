@@ -23,13 +23,13 @@ leanage explore --lib .
 leanage report --lib .                # one self-contained HTML page: pick a result, name a target, get the answer, graph and closure
 ```
 
-Every command accepts `--lib <project>` and then sees your library and Mathlib as one graph. `index` also reads the tactics (induction, cases, by_contra, rcases...) out of your Lean files, so the report can answer "is induction written in this proof?" for your own theorems, and it flags scoped instances as boilerplate. Nothing leaves your machine, except the text of a plain-English search if you click that button in the report (it goes to TheoremGraph).
+Every command accepts `--lib <project>` and then sees your library and Mathlib as one graph. `index` also reads the tactics (induction, cases, by_contra, rcases...) out of your Lean files, so the report can answer "is induction written in this proof?" for your own theorems (for Mathlib and TauCeti declarations it uses the store's tactic records), and it flags scoped instances as boilerplate. Nothing leaves your machine, except the text of a plain-English search if you click that button in the report (it goes to TheoremGraph).
 
 `--json` is short for `--format json`. `--forbid` is repeatable and accepts a `Pkg.*` prefix.
 
 ## Store
 
-The graph comes from a pinned revision of the Hugging Face dataset [dsleo/leanage-tauceti-store](https://huggingface.co/datasets/dsleo/leanage-tauceti-store) (Lean core, Batteries, Mathlib and TauCeti; about 80 MB, downloaded on the first run, which can take a minute, then cached in `~/.cache/leanage`). Override it with `--store <dir-or-url>` or the `LEANAGE_STORE` environment variable (a local directory or an https URL of a store).
+The graph comes from a pinned revision of the Hugging Face dataset [dsleo/leanage-tauceti-store](https://huggingface.co/datasets/dsleo/leanage-tauceti-store) (Lean core, Batteries, Mathlib and TauCeti, with the tactics written in each declaration's source; about 80 MB, downloaded on the first run, which can take a minute, then cached in `~/.cache/leanage`). Override it with `--store <dir-or-url>` or the `LEANAGE_STORE` environment variable (a local directory or an https URL of a store).
 
 ## Exit codes
 
@@ -51,7 +51,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       # Fails the job (exit 1) if the theorem depends on Classical.choice; exit 2 if the name is unknown.
-      - run: npx --yes @dsleo/leanage@0.3.0 check MyProject.main_theorem --forbid Classical.choice
+      - run: npx --yes @dsleo/leanage@0.4.0 check MyProject.main_theorem --forbid Classical.choice
 ```
 
 Pin the version so the check does not change under you. Without `--lib` the check runs against the store, so it covers Mathlib and TauCeti declarations. To check your own project, build it, run `leanage index .` and add `--lib .`.

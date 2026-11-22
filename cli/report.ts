@@ -23,7 +23,7 @@ export interface ReportData {
   focus: number[] // library nodes of interest (the modules you pointed at), real declarations only
   lines: Record<number, number> // source line per library node
   bp: number[] // instances, projections, coercions, structure helpers
-  tac: Record<number, string> // tactics read from your source, per library node (comma separated)
+  tac: Record<number, string> // tactics written in the source, per node (comma separated)
   edges: string // base64
   scope: boolean // statement-only questions are possible
 }
@@ -71,8 +71,8 @@ export function buildReport(graph: LocalGraph, project: string): ReportData {
     const l = graph.libraryLine(id)
     if (l !== undefined) lines[i] = l
   }
-  const tac: Record<number, string> = {}
-  for (let i = 0; i < nLib; i++) { const t = graph.tacticsOf(order[i]); if (t?.length) tac[i] = t.join(',') }
+  const tac: Record<number, string> = {} // library nodes from your source; Mathlib and TauCeti nodes from the store, when it has tactic records
+  for (let i = 0; i < order.length; i++) { const t = graph.tacticsOf(order[i]); if (t?.length) tac[i] = t.join(',') }
   const bp: number[] = []
   order.forEach((id, i) => { if (graph.isBoilerplate(id) || isStructuralAuxName(names[i])) bp.push(i) })
   const files: Record<string, string> = {}

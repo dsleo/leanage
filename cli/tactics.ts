@@ -6,6 +6,8 @@ import { join } from 'node:path'
  * Mathlib against the elaborator's own records): a keyword counts only as the start of a tactic step, never in comments, strings, quotations or names.
  * The declaration's lines come from Lean (declaration ranges), so no Lean parsing is done here.
  */
+// `match` is scanned but not reported: against Mathlib's recorded tactics its precision was 0.86, below the 0.99 bar the other labels meet.
+const NOT_REPORTED = new Set(['match'])
 export const TACTIC_LABELS = ['induction', 'cases', 'rcases', 'obtain', 'by_cases', 'by_contra', 'contrapose', 'exfalso', 'fin_cases', 'split_ifs', 'rintro', 'match']
 
 const KW = [
@@ -19,6 +21,18 @@ const QUOTE = /`\((?:\w+\|)?/g
 const CHAR = /(?<![\p{L}\p{N}_'])'(?:\\.[0-9a-fA-F]*|[^\\'\n])'/gu
 const OPEN = '([{⟨'
 const CLOSE = ')]}⟩'
+
+// Term-mode uses found by the calibration: `by_contra fun h => ..` and `by_cases (fun h => ..) fun h => ..` are library functions, not the
+// tactics; `(induction := false)` and `exfalso : Bool` are names. Each rule only removes a match. Same rules as scripts/ingest_tactics_ranges.py.
+const TERM_BY_CONTRA = /^!?\s*(fun\b|λ|\(\s*fun\b|<\||\$)/
+const TERM_BY_CASES = /^!?\s*(fun\b|λ|\(\s*fun\b|\(\s*by\b|<\||\$|Or\.|$)/
+function termForm(bit: number, rest: string): boolean {
+  const r = rest.trimStart()
+  if (r.startsWith(':=')) return true
+  if (bit === 7 && r.startsWith(':')) return true
+  if (bit === 5 && TERM_BY_CONTRA.test(rest)) return true
+  return bit === 4 && TERM_BY_CASES.test(rest)
+}
 
 /** Blanks comments and string literals, keeping every newline (so line numbers still match the file). */
 export function stripComments(src: string): string {
@@ -109,6 +123,8 @@ export function scanTactics(text: string): string[] {
     const pre = text.slice(ls, s)
     if (pre.trim() === '' || BULLET.test(pre)) { /* first token of its line */ }
     else if (!START_TAIL.test(pre.slice(-80))) continue
+    const eol = text.indexOf('\n', s + m[0].length)
+    if (termForm(b, text.slice(s + m[0].length, eol < 0 ? text.length : eol))) continue
     if (b === 11) {
       iv ??= byIntervals(text)
       let k = -1
@@ -124,7 +140,7 @@ export function scanTactics(text: string): string[] {
     }
     mask |= 1 << b
   }
-  return TACTIC_LABELS.filter((_, b) => mask & (1 << b))
+  return TACTIC_LABELS.filter((l, b) => mask & (1 << b) && !NOT_REPORTED.has(l))
 }
 
 /**

@@ -137,6 +137,24 @@ describe('library layer', () => {
     expect(html).not.toContain('/*DATA*/null')
   })
 
+  it('embeds tactics for store nodes and library nodes in the report', () => {
+    const h = mk()
+    // store nodes: Nat.add_comm (covered, induction), propext (covered, none), sorryAx (unknown)
+    const bytes = new Uint8Array(6); const dv = new DataView(bytes.buffer)
+    dv.setUint16(0, (1 << 15) | 1, true); dv.setUint16(2, 1 << 15, true); dv.setUint16(4, 0, true)
+    expect(h.setTactics(bytes, { bits: { '0': 'induction' } })).toBe(true)
+    h.extend([
+      { name: 'Lib.t', module: 'Lib.A', kind: 't', typeDeps: [], valueDeps: ['Nat.add_comm'], tactics: ['by_contra'] },
+      { name: 'Lib.u', module: 'Lib.A', kind: 't', typeDeps: [], valueDeps: ['Lib.t'] },
+    ])
+    const r = buildReport(h, 'Lib')
+    const at = (n: string) => r.tac[r.names.indexOf(n)]
+    expect(at('Lib.t')).toBe('by_contra')
+    expect(at('Nat.add_comm')).toBe('induction')
+    expect(at('Lib.u')).toBeUndefined() // no tactic data is not the same as none: nothing is embedded
+    expect(at('propext')).toBeUndefined()
+  })
+
   it('applies library flags and keeps source lines', () => {
     const h = mk()
     h.setFlags(new Uint8Array(3), {})

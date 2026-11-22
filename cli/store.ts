@@ -4,9 +4,9 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { gunzipSync } from 'node:zlib'
-import { LocalGraph, type EdgeTypesLegend, type FlagsLegend, type StoreMeta } from '../src/localGraph'
+import { LocalGraph, type EdgeTypesLegend, type FlagsLegend, type StoreMeta, type TacticLegend } from '../src/localGraph'
 
-export const DEFAULT_STORE = 'https://huggingface.co/datasets/dsleo/leanage-tauceti-store/resolve/eff464ac66d0408149dca4ff629effc128102dc7' // same store as the webapp: Mathlib 31ce06e + TauCeti
+export const DEFAULT_STORE = 'https://huggingface.co/datasets/dsleo/leanage-tauceti-store/resolve/41bd905332cf49133c03bef77825ea0d21d778af' // same store as the webapp: Mathlib 31ce06e + TauCeti
 const FILES = ['names.txt', 'modules.txt', 'node_module.u32', 'degrees.vbyte', 'targets.vbyte', 'meta.json']
 
 const unzip = (b: Buffer): Buffer => (b.length > 1 && b[0] === 0x1f && b[1] === 0x8b ? gunzipSync(b) : b)
@@ -54,5 +54,9 @@ export async function loadStore(spec: string): Promise<LocalGraph> {
     const [bytes, legend] = await Promise.all(['edgetypes.u8', 'edgetypes.json'].map(async (f) => unzip(await readStoreFile(spec, f, dir))))
     graph.setEdgeTypes(new Uint8Array(bytes), JSON.parse(text(legend)) as EdgeTypesLegend)
   } catch { /* no edge types */ }
+  try { // optional: stores without tactics.* have no source-tactic evidence for Mathlib and TauCeti declarations
+    const [bytes, legend] = await Promise.all(['tactics.u16', 'tactics.json'].map(async (f) => unzip(await readStoreFile(spec, f, dir))))
+    graph.setTactics(new Uint8Array(bytes), JSON.parse(text(legend)) as TacticLegend)
+  } catch { /* no tactics */ }
   return graph
 }

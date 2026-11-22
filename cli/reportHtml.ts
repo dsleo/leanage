@@ -261,7 +261,7 @@ function methodEvidence(k,r,m){
   var M=METHODS[m],ev=[],ord={observed:0,related:1};
   r.order.forEach(function(z){var n=D.names[z];
     if(z!==k)M.rules.forEach(function(ru){if(n===ru.n)ev.push({z:z,g:ru.g,src:false,tok:ru.n,x:ru.x})});
-    var tc=z<D.nLib&&D.tac[z];if(tc)tc.split(',').forEach(function(t){
+    var tc=D.tac[z];if(tc)tc.split(',').forEach(function(t){
       if(M.obs.indexOf(t)>=0)ev.push({z:z,g:'observed',src:true,tok:t,x:'The '+t+' tactic is written in the source of this declaration (read from your Lean file).'});
       else if(M.rel.indexOf(t)>=0)ev.push({z:z,g:'related',src:true,tok:t,x:t+' appears in the source of this declaration. It is related to the question but does not by itself show the method.'})})});
   ev.sort(function(a,b){return ord[a.g]-ord[b.g]||r.depth[a.z]-r.depth[b.z]||(D.names[a.z]<D.names[b.z]?-1:1)});return ev}
@@ -288,7 +288,7 @@ function renderResults(p,k){
       var steps=pr?pathNames(r,pr.z).length-1:0,where=steps===0?'in the selected proof itself':steps+(steps===1?' step':' steps')+' down';
       h+=card(METHODS[t].label,!pr?'<span class="status-pill neutral">Not found</span>':pr.g==='related'?'<span class="status-pill pending">Related only</span>':'<span class="status-pill positive">'+(pr.src?'Written in the proof':'Found in dependencies')+'</span>',
         pr?'<div class="witness"><p class="story-headline">'+(pr.src?esc(METHODS[t].label)+' is written in the proof of '+esc(D.names[pr.z])+', '+where+'.':esc(METHODS[t].label)+' enters through '+esc(INFORMAL[D.names[pr.z]]||D.names[pr.z])+', '+where+'.')+'</p>'+pathHtml(pathNames(r,pr.z))+'<p class="fine-print">'+esc(pr.x)+'</p></div>'
-          :'<p class="answer-note">No evidence of '+esc(METHODS[t].label.toLowerCase())+' appeared among the '+r.order.length.toLocaleString()+' declarations reachable from this result. For methods this is not proof of absence: tactics are read from your library’s source only, and Mathlib declarations count only through structural markers such as Nat.rec.</p>');return}
+          :'<p class="answer-note">No evidence of '+esc(METHODS[t].label.toLowerCase())+' appeared among the '+r.order.length.toLocaleString()+' declarations reachable from this result. For methods this is not proof of absence: tactics are read from the source (yours, and Mathlib and TauCeti from the store), which misses tactics produced by macros, and compiler-generated declarations have no source lines.</p>');return}
     var tk=byName[t],hit=tk!==undefined&&r.seen[tk];if(hit)ev.push(pathIds(r,tk));
     var nm=t.charAt(0).toUpperCase()+t.slice(1);
     h+=card('Depends on '+esc(t),hit?'<span class="status-pill positive">Found in dependencies</span>':'<span class="status-pill neutral">Never reached</span>',

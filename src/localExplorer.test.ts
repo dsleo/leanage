@@ -82,7 +82,7 @@ describe('source tactics (same commit)', () => {
     const found = findEvidence(localStates(g, root, [objective])!.get('proof')!, objective)
     expect(found).toHaveLength(1)
     expect(found[0]).toMatchObject({ grade: 'observed', source: 'MathlibTactics', matchedToken: 'induction', matchedName: 'Test.mid' })
-    expect(found[0].explanation).toMatch(/same Mathlib commit/)
+    expect(found[0].explanation).toMatch(/commit the dependency store was built from/)
   })
 
   it('keeps related tactics related and does not invent other methods', () => {

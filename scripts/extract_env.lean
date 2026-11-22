@@ -8,6 +8,8 @@ Run inside a Lake project that depends on Mathlib, with its .olean files built:
 
 Output: one line per imported constant,
     <name>\t<type deps>\t<value deps>\t<kind>\t<module>\t<flags>
+and, next to it, out.tsv.ranges: `<name>\t<module>\t<first line>-<last line>` for every constant that has a declaration range
+(used by scripts/ingest_tactics_ranges.py to find the source lines of each declaration).
 name = Name.toString (same escaping as the store's names.txt); dependency lists = names joined by U+001F;
 kind and flags as in extract_edges.lean and extract_flags.lean. The only difference from extract_edges.lean: the value deps of
 an inductive type are its constructors, as in Lean's `#print axioms` (CollectAxioms), so closures agree with Lean.
@@ -68,6 +70,7 @@ unsafe def main (args : List String) : IO UInt32 := do
   let coe := coeExt.getState env
   let scopedInsts := scopedInstances env
   let h ← IO.FS.Handle.mk out .write
+  let hr ← IO.FS.Handle.mk (out ++ ".ranges") .write
   h.putStrLn s!"# lean {Lean.versionString} {Lean.githash}"
   let count ← IO.mkRef 0
   env.constants.map₁.forM fun n ci => do
@@ -75,7 +78,11 @@ unsafe def main (args : List String) : IO UInt32 := do
       | some i => env.header.moduleNames[i.toNat]!.toString
       | none => "?"
     h.putStrLn s!"{n}\t{joinNames ci.type.getUsedConstants}\t{joinNames (valueDeps ci)}\t{kindOf ci}\t{m}\t{flagsOf env coe scopedInsts n ci}"
+    match declRangeExt.find? env n with
+    | some r => hr.putStrLn s!"{n}\t{m}\t{r.range.pos.line}-{r.range.endPos.line}"
+    | none => pure ()
     count.modify (· + 1)
   h.flush
+  hr.flush
   IO.eprintln s!"wrote {← count.get} constants"
   return 0
