@@ -59,7 +59,7 @@ The [method validation record](docs/feasibility/method-validation.md) contains s
 
 ## Store hosting
 
-The app and the CLI load one store, [dsleo/leanage-tauceti-store](https://huggingface.co/datasets/dsleo/leanage-tauceti-store) on Hugging Face, pinned to one revision (`STORE_URL` in `src/libraries.ts`, `DEFAULT_STORE` in `cli/store.ts`; override with `VITE_TAUCETI_STORE_URL` or `--store`). It holds Lean core, Batteries, Mathlib at the commit [TauCeti](https://github.com/TauCetiProject/TauCeti) pins, and the TauCeti declarations, in one graph. It is extracted with Lean (see `docs/`), not downloaded from a dataset, so it has no tactic records. After re-extracting, upload with `hf upload` and update the pin in both places.
+The app and the CLI load one store, [dsleo/leanage-tauceti-store](https://huggingface.co/datasets/dsleo/leanage-tauceti-store) on Hugging Face, pinned to one revision (`STORE_URL` in `src/libraries.ts`, `DEFAULT_STORE` in `cli/store.ts`; override with `VITE_TAUCETI_STORE_URL` or `--store`). It holds Lean core, Batteries, Mathlib at the commit [TauCeti](https://github.com/TauCetiProject/TauCeti) pins, and the TauCeti declarations, in one graph. It is extracted with Lean (see `docs/`), not downloaded from a dataset. Tactic records come from a scan of each declaration's source lines (`scripts/ingest_tactics_ranges.py`, calibration in `docs/feasibility/tactics-scan-calibration.md`). To rebuild it, follow `docs/STORE_TACTICS_PLAN.md` and `scripts/update_store.sh`'s Lean steps, upload the files with `huggingface_hub`, and update the pin in both places.
 
 ## Command line
 
