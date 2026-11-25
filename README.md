@@ -5,7 +5,11 @@ Leanage answers dependency questions about Lean declarations in Mathlib, TauCeti
 - **Web app:** <https://leanage.vercel.app>. Search a result, confirm it, ask about a target or a method, read the witness path and the graph. [How it works](https://leanage.vercel.app/how-it-works) explains the evidence and its limits.
 - **Command line:** `@dsleo/leanage`, same data, plus a layer for your own Lean project.
 
+![The web app: search a result, confirm it, ask whether induction is written in its proof, open the dependency graph](docs/media/webapp.gif)
+
 ## Command line
+
+![The CLI on a small Lean project: libs, check, axioms, explore](docs/media/cli.gif)
 
 ```sh
 npm i -g @dsleo/leanage          # or try once: npx @dsleo/leanage axioms Nat.add_comm
