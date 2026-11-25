@@ -1,100 +1,72 @@
 # Leanage
 
-**Leanage** is a focused explorer for the dependency graph behind Mathlib proofs. It helps researchers and Lean users identify a formal theorem, inspect what it depends on, and follow each graph path returned by TheoremGraph.
+Leanage answers dependency questions about Lean declarations in Mathlib, TauCeti and your own project: what does this theorem depend on, which axioms does it reach (and by which path), does it use `sorry`, and was induction, case analysis or contradiction written in its proof.
 
-## Run locally
-
-```sh
-npm install
-npm run dev -- --port 5187 --strictPort
-```
-
-Open [http://127.0.0.1:5187/](http://127.0.0.1:5187/). [How it works](http://127.0.0.1:5187/how-it-works) explains the workflow, evidence, and limits. Vite proxies `/tg/*` to `https://api.theoremsearch.com`, so searches and neighborhood requests need an internet connection. Leanage does not build or store a complete offline graph.
-
-```sh
-npm test
-npm run build
-```
-
-### Local dependency store
-
-When `public/store/` exists, the app answers dependency questions from a local copy of the Mathlib dependency graph (complete closure, no API calls) and falls back to TheoremGraph when it is missing or the declaration is not in it. Build it once:
-
-```sh
-# download the 128 parquet shards of mathlib-initiative/mathlib-const-dep, then:
-python3 scripts/ingest_const_dep.py --shards path/to/shards --out public/store --check
-```
-
-The store is gitignored (about 24 MB gzipped). It needs `pyarrow` and `numpy`. Details and validation are in [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
-
-Vercel serves the app at [https://leanage.vercel.app](https://leanage.vercel.app). The configuration rewrites the guide route. The site caches neighborhood responses at the CDN for one hour; semantic search remains uncached.
-
-## Use Leanage
-
-```mermaid
-flowchart LR
-    A[Search a theorem] --> B[Confirm its Mathlib declaration]
-    B --> C[Ask about a method or dependency]
-    C --> D[Explore the returned proof path]
-```
-
-Search is semantic, so confirm the exact declaration. A graph path is evidence from TheoremGraph, not a proof certificate or a complete dependency closure. Recorded tactic matches are possible signals; their source revisions may differ. See [How it works](https://leanage.vercel.app/how-it-works) for interpretation and limits, and the [method validation record](docs/feasibility/method-validation.md) for source details.
-
-## Code and decisions
-
-- [src/api.ts](src/api.ts): API validation, timeouts, request sharing, memory cache, and bounded `429` retries.
-- [src/neighborhoodCache.ts](src/neighborhoodCache.ts): bounded IndexedDB cache with expiration.
-- [src/objectives.ts](src/objectives.ts): interpretation of method and exact-name questions, including existing French shared links.
-- [src/methods.ts](src/methods.ts): exact graph rules, tactic metadata, version-aware evidence, and source attribution.
-- [scripts/build_method_index.py](scripts/build_method_index.py): pinned, reproducible compact index builder.
-- [src/explorer.ts](src/explorer.ts): layer-by-layer traversal, distinct policies, paths, cancellation, and budgets.
-- [src/App.tsx](src/App.tsx): search, declaration confirmation, and traversal coordination.
-- [src/WorkflowSections.tsx](src/WorkflowSections.tsx), [src/CandidateSection.tsx](src/CandidateSection.tsx), [src/ResultsSection.tsx](src/ResultsSection.tsx), and [src/Findings.tsx](src/Findings.tsx): candidate search, questions, and evidence presentation.
-- [src/GraphExplorer.tsx](src/GraphExplorer.tsx): navigable graph, node details, and list view.
-- [src/HowItWorks.tsx](src/HowItWorks.tsx): standalone interpretation guide.
-
-The [Rocq and MathComp extension recommendation](docs/ROCQ_MATHCOMP_EXTENSION.md) describes the planned extraction strategy.
-
-The [method validation record](docs/feasibility/method-validation.md) contains source checks and live results on mathematical examples.
-
-## Store hosting
-
-The app and the CLI load one store, [dsleo/leanage-tauceti-store](https://huggingface.co/datasets/dsleo/leanage-tauceti-store) on Hugging Face, pinned to one revision (`STORE_URL` in `src/libraries.ts`, `DEFAULT_STORE` in `cli/store.ts`; override with `VITE_TAUCETI_STORE_URL` or `--store`). It holds Lean core, Batteries, Mathlib at the commit [TauCeti](https://github.com/TauCetiProject/TauCeti) pins, and the TauCeti declarations, in one graph. It is extracted with Lean (see `docs/`), not downloaded from a dataset. Tactic records come from a scan of each declaration's source lines (`scripts/ingest_tactics_ranges.py`, calibration in `docs/feasibility/tactics-scan-calibration.md`). To rebuild it, follow `docs/STORE_TACTICS_PLAN.md` and `scripts/update_store.sh`'s Lean steps, upload the files with `huggingface_hub`, and update the pin in both places.
+- **Web app:** <https://leanage.vercel.app>. Search a result, confirm it, ask about a target or a method, read the witness path and the graph. [How it works](https://leanage.vercel.app/how-it-works) explains the evidence and its limits.
+- **Command line:** `@dsleo/leanage`, same data, plus a layer for your own Lean project.
 
 ## Command line
 
-`leanage` queries the same store as the web app (`npm run leanage -- <command>` or `npx tsx cli/leanage.ts <command>`).
-
+```sh
+npm i -g @dsleo/leanage          # or try once: npx @dsleo/leanage axioms Nat.add_comm
+leanage axioms <name>            # axioms reached, with one witness path each
+leanage deps|rdeps <name>        # what it depends on / what depends on it (--filter, --no-generated, --no-boilerplate, --format text|json|csv|dot)
+leanage path <from> <to>         # shortest dependency path
+leanage check <name> --forbid Classical.choice   # exit 1 if reached, 2 if the name is unknown
+leanage explore                  # interactive: confirm a result of interest, then give a target (or none)
 ```
-leanage axioms <name>
-leanage deps|rdeps <name> [--filter 'Topology.* -Classical.*'] [--no-generated] [--no-boilerplate] [--format text|json|csv|dot]
-leanage path <from> <to>
-leanage check <name> --forbid Classical.choice    # exit 1 if reached, 2 if name missing
-```
 
-### Your own library on top of Mathlib
+The first run downloads the store (about 85 MB) into `~/.cache/leanage`. `--scope statement` follows only what the statement mentions. `--store <dir-or-url>` or `LEANAGE_STORE` selects another store. See [cli/README.md](cli/README.md) for the CI example and exit codes.
 
-Needs Lean installed and your Lake project built (`lake build`) against the same Mathlib commit as the store.
+### Your own Lean project
 
-```
-leanage index <project> [--dir <subdir>]   # runs scripts/extract_library.lean over every module the project has built; --dir marks the modules of interest; writes <project>/.leanage/library.tsv
-leanage report --lib <project> [--out file.html]          # self-contained HTML page with the webapp flow: pick a result of interest, name a target (or none), get axioms/witness path and the closure panel
-leanage explore --lib <project>                           # interactive, like the webapp: confirm a result of interest, then give a target (path) or none (axioms, closure size)
-leanage libs --lib <project>                              # your theorems and the axioms each reaches (sorryAx = unfinished)
-leanage path MyLib.main Classical.choice --lib <project>  # witness path, each step tagged [library] or [Mathlib]
+Needs Lean installed and your Lake project built (`lake build`) against the Mathlib commit of the store (a mismatch only warns).
+
+```sh
+leanage index <project>                   # Lean extracts your declarations' dependencies and reads the tactics from your files
+leanage libs --lib <project>              # your theorems and the axioms each reaches (sorryAx = unfinished)
 leanage check MyLib.main --forbid sorryAx --lib <project>
+leanage explore --lib <project>
+leanage report --lib <project>            # one self-contained HTML page: the webapp flow over your project
 ```
 
-`--lib` works with every command. See [docs/LIBRARY_LAYER_PLAN.md](docs/LIBRARY_LAYER_PLAN.md).
+`--lib` works with every command and tags each path step `[library]` or `[Mathlib]`. Nothing leaves your machine, except the text of a plain-English search if you click that button in the report. Design notes: [docs/LIBRARY_LAYER_PLAN.md](docs/LIBRARY_LAYER_PLAN.md).
 
-`--json` is short for `--format json`. `--store <dir-or-url>` (or `LEANAGE_STORE`) selects the store; the default is the Hugging Face dataset, downloaded once into `~/.cache/leanage`. Unknown names print up to 5 suggestions and exit 2.
+## How it works
 
-### Install from npm
+Everything runs on one static store, [dsleo/leanage-tauceti-store](https://huggingface.co/datasets/dsleo/leanage-tauceti-store) on Hugging Face (Lean core, Batteries, Mathlib at the commit TauCeti pins, and TauCeti; 1.65M declarations, 73.6M links). It is extracted with Lean and loaded into memory by the browser or the CLI, so there is no server doing the work.
 
-The CLI is also packaged standalone (`cli/package.json`, single bundled file, no dependencies, Node >= 18): `npx @dsleo/leanage check <name> --forbid Classical.choice`. Build it with `npm run build:cli` (output `cli/dist/leanage.mjs`); see `cli/README.md` for the CI example and exit codes (0 ok, 1 check failed or no path, 2 name missing or usage error). `--store <dir-or-url>` overrides the pinned Hugging Face store revision in `cli/store.ts`.
+| File | Content |
+|---|---|
+| names, modules, `degrees` / `targets` | each declaration, and which declarations its compiled proof uses (links as flat arrays) |
+| `edgetypes` | whether a link is in the statement, the proof or both (the "statement only" scope) |
+| `flags` | instances (including scoped ones), projections, coercions, classes, structures (unknown for TauCeti) |
+| `tactics` | per declaration, which tactics are written in its own source: induction, cases, rcases, obtain, by_cases, by_contra, contrapose, exfalso, fin_cases, split_ifs, rintro |
+
+A question is a walk over those arrays from your theorem: the closure, the axioms reached, the shortest path to a named target, the nearest declaration whose source has a given tactic. Lean-name search runs on the names in memory; plain-English search goes to TheoremGraph and finds Mathlib statements only.
+
+The graph comes from running Lean, not from reading files. The tactic records come from a scan of each declaration's source lines (Lean provides the line ranges), checked on 347,049 Mathlib declarations against the tactics Lean recorded: [docs/feasibility/tactics-scan-calibration.md](docs/feasibility/tactics-scan-calibration.md).
+
+## Develop
+
+```sh
+npm install
+npm run dev          # http://127.0.0.1:5173 (Vite proxies /tg/* to api.theoremsearch.com)
+npm test             # vitest
+npm run build        # web app
+npm run build:cli    # cli/dist/leanage.mjs
+```
+
+To use a local copy of the store, put its files in `public/store/` (gitignored) and set `VITE_TAUCETI_STORE_URL=/store`; the CLI takes `--store <dir>`.
+
+Layout: `src/` web app (`localGraph.ts` is the graph, `methods.ts` the method evidence, `GraphExplorer.tsx` the graph view), `cli/` command line and report generator (`tactics.ts` the source scan for your project), `scripts/` store extraction and ingestion (Lean and Python), `docs/` plans and validation records ([IMPLEMENTATION_PLAN](docs/IMPLEMENTATION_PLAN.md), [method validation](docs/feasibility/method-validation.md), [Rocq/MathComp extension idea](docs/ROCQ_MATHCOMP_EXTENSION.md)).
+
+### Rebuilding the store
+
+Follow [docs/STORE_TACTICS_PLAN.md](docs/STORE_TACTICS_PLAN.md): `scripts/extract_env.lean` (Mathlib) and `scripts/extract_library_stream.lean` (TauCeti) write the graph and the line ranges, `scripts/ingest_env_tsv.py` builds the store, `scripts/ingest_tactics_ranges.py` adds the tactics, `scripts/verify_store_axioms.py` checks axioms against Lean's `#print axioms`. Upload the files to the dataset and update the pin in `src/libraries.ts` and `cli/store.ts`. Run one Lean extraction at a time (macOS has about 30,000 system file handles).
 
 ## Deploying
 
-`.github/workflows/ci.yml` runs `npm ci`, `npx tsc -b`, `npx vitest run --testTimeout=60000`, `npm run build` and `npm run build:cli` on every push and pull request (store-backed tests are skipped unless `LEANAGE_STORE` is set, so CI needs no data).
+CI (`.github/workflows/ci.yml`) runs the type check, tests and both builds on every push. Hosting is Vercel's Git integration: a push to `main` deploys production, other branches get preview URLs. The CLI is released with `cd cli && npm publish --access public` (npm asks for 2FA).
 
-Hosting is Vercel's Git integration (project `leanage` is connected to this repository): a push to `main` deploys production and other branches get preview URLs. It deploys independently of the CI result.
+Licensed Apache-2.0.
